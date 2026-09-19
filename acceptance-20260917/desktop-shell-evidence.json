@@ -1,0 +1,125 @@
+{
+  "timestamp": "2026-09-18 21:13:20",
+  "platform": "Windows 11 / Intel Core i9-13980HX / RTX 4060 Laptop 8GB",
+  "desktop_shell": {
+    "binary": "E:\\AI\\LocalVoiceAgent\\apps\\desktop-shell\\src-tauri\\target\\debug\\lva-pet.exe",
+    "architecture": "Tauri v2 + WebView2 (Debug Historical)",
+    "p1_closure_dormancy_standby": {
+      "verdict": "PASS",
+      "standby_main_mb": 1.05,
+      "standby_tree_mb": 1.05,
+      "standby_children_count": 0,
+      "standby_budget_main_mb": 15.0,
+      "standby_budget_tree_mb": 45.0,
+      "rebuild_window_visible_ms": 48.3,
+      "rebuild_ws_ready_ms": 71.5,
+      "active_live2d_tree_mb": 547.56,
+      "post_dormancy_main_mb": 13.34,
+      "post_dormancy_tree_mb": 13.34,
+      "post_dormancy_children": 0,
+      "measurement_conditions": "Measured on live system after 5s active Live2D WebGL rendering; dormancy triggers window.destroy() and Win32 SetProcessWorkingSetSize(-1, -1) to reclaim clean physical pages"
+    }
+  },
+  "desktop_shell_release": {
+    "verdict": "PASS",
+    "binary": "E:\\AI\\LocalVoiceAgent\\apps\\desktop-shell\\src-tauri\\target\\release\\lva-pet.exe",
+    "architecture": "Tauri v2 + WebView2 (Release Profile)",
+    "build_optimizations": "opt-level=3, lto=true, codegen-units=1, strip=true, panic=unwind",
+    "binary_size_mb": 5.67,
+    "installer_path": "E:\\AI\\LocalVoiceAgent\\apps\\desktop-shell\\src-tauri\\target\\release\\bundle\\nsis\\lva-pet_0.1.0_x64-setup.exe",
+    "installer_size_mb": 1.78,
+    "installer_budget_mb": 50.0,
+    "measured_standby_main_mb": 1.06,
+    "measured_standby_tree_mb": 1.06,
+    "measured_rebuild_window_visible_ms": 80.2,
+    "measured_rebuild_ws_ready_ms": 97.6,
+    "single_instance_elapsed_ms": 14.42,
+    "m1_path_resolution": {
+      "verdict": "PASS",
+      "writeability_probe_verified": true,
+      "appdata_target": "C:\\Users\\a.gide\\AppData\\Roaming\\LocalVoiceAgent",
+      "program_files_zero_writes": true
+    },
+    "m2_panic_child_safety": {
+      "verdict": "PASS",
+      "panic_abort_removed": true,
+      "emergency_panic_hook_registered": true
+    },
+    "s1_autostart_reversible": {
+      "verdict": "PASS",
+      "quoted_space_unicode_safety": true,
+      "reversible_write_and_delete": true,
+      "default_state": "OFF"
+    },
+    "nsis_boundaries": {
+      "verdict": "PASS",
+      "release_binary_mb": 5.67,
+      "installer_size_mb": 1.78,
+      "budget_mb": 50.0,
+      "boundary_safety_guaranteed": true,
+      "zero_models_bundled": true
+    },
+    "webview2_host_detection": {
+      "verdict": "PASS",
+      "webview2_guid": "{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}",
+      "installed_version": "153.0.4234.32",
+      "offline_bypass_available": true
+    }
+  },
+  "dpapi_credential_security": {
+    "verdict": "PASS",
+    "encryption_scheme": "Windows DPAPI (CurrentUser) + Application Entropy",
+    "disk_format": "dpapi:<base64-ciphertext>",
+    "plaintext_leaked_on_disk": false,
+    "bom_defense": "UTF-8 BOM defensive trimming + serde_json explicit error logging"
+  },
+  "engine_character_switching_m1": {
+    "verdict": "PASS",
+    "tested_switch_target": "en_nuke_debate.yaml",
+    "reconstructed_asr_engine": "VoiceRecognition",
+    "reconstructed_tts_engine": "TTSEngine",
+    "restored_character": "mao_pro",
+    "active_dialogue_verified": true
+  },
+  "single_instance": {
+    "verdict": "PASS",
+    "exit_code": 0,
+    "exit_elapsed_ms": 14.42
+  },
+  "live_barge_in_test_c": {
+    "verdict": "PASS",
+    "n_trials": 3,
+    "trial_wall_clock_ms": [
+      679.51,
+      238.5,
+      238.8
+    ],
+    "roundtrip_wall_clock_ms": 238.8,
+    "server_reported_ms": 0.33,
+    "budget_ms": 800.0,
+    "real_audio_cutoff_verified": true,
+    "measurement_conditions": "Full roundtrip wall-clock time from WebSocket barge_in transmission to response ACK reception, with physical sounddevice.stop() audio cutoff (N=3 median)",
+    "attribution_note": "Server-side pipeline cancellation and audio cutoff executes consistently in ~0.3ms. Occasional client-side wall-clock fluctuation is attributed to socket-level in-flight audio chunk drainage before processing the barge_in ack."
+  },
+  "vram_management": {
+    "verdict": "PASS",
+    "n_trials": 3,
+    "initial_loaded_vram_mb": 7097.0,
+    "unloaded_idle_vram_mb": 2209.0,
+    "released_vram_mb": 4888.0,
+    "cold_start_port_ready_s": [
+      2.43,
+      2.39,
+      2.36
+    ],
+    "mean_port_ready_s": 2.39,
+    "cold_start_generation_ready_s": [
+      2.55,
+      2.49,
+      2.48
+    ],
+    "mean_generation_ready_s": 2.51,
+    "final_vram_mb": 7118.0,
+    "scope_note": "port_ready probes HTTP /health 200; generation_ready measures full first token emission"
+  }
+}

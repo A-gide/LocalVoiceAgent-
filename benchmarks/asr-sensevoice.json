@@ -1,0 +1,1593 @@
+{
+ "engine": "sensevoice",
+ "backend": "sherpa-onnx",
+ "device": "cpu",
+ "threads": 6,
+ "host": {
+  "platform": "Windows-10-10.0.26200-SP0",
+  "python": "3.11.15"
+ },
+ "load_s": 1.05,
+ "rss_mb": {
+  "baseline": 42.5,
+  "after_load": 340.0,
+  "delta": 297.5
+ },
+ "vram_mb": 0,
+ "first_call_ms": [
+  157.4,
+  141.0,
+  142.5
+ ],
+ "real": {
+  "n": 60,
+  "cer_mean": 0.0337,
+  "cer_median": 0.0,
+  "rtf_mean": 0.0278,
+  "rtf_p95": 0.0327,
+  "decode_ms_mean": 138.0,
+  "decode_ms_p95": 206.2,
+  "exact_match": 0.7
+ },
+ "sci": {
+  "n": 52,
+  "cer_mean": 0.201,
+  "cer_median": 0.1716,
+  "rtf_mean": 0.0331,
+  "rtf_p95": 0.0388,
+  "decode_ms_mean": 116.1,
+  "decode_ms_p95": 156.8,
+  "exact_match": 0.212
+ },
+ "sci_by_variant": {
+  "melotts": {
+   "n": 26,
+   "cer_mean": 0.264,
+   "cer_median": 0.2316,
+   "rtf_mean": 0.0346,
+   "rtf_p95": 0.0394,
+   "decode_ms_mean": 98.4,
+   "decode_ms_p95": 133.6,
+   "exact_match": 0.077
+  },
+  "sapi": {
+   "n": 26,
+   "cer_mean": 0.1379,
+   "cer_median": 0.1088,
+   "rtf_mean": 0.0316,
+   "rtf_p95": 0.0349,
+   "decode_ms_mean": 133.7,
+   "decode_ms_p95": 171.7,
+   "exact_match": 0.346
+  }
+ },
+ "confusion": {
+  "expected": 4,
+  "correct": 3,
+  "wrong_forms": {
+   "落合": 1
+  }
+ },
+ "rows_real": [
+  {
+   "id": "BAC009S0002W0122",
+   "ref": "而对楼市成交抑制作用最大的限购",
+   "text": "而对面楼市成交抑制作用最大的限购。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.06666666666666667,
+   "audio_s": 5.999,
+   "decode_ms": 136.2,
+   "rtf": 0.0227
+  },
+  {
+   "id": "BAC009S0002W0128",
+   "ref": "四十六个限购城市当中",
+   "text": "46个限购城市当中。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.1,
+   "audio_s": 3.393,
+   "decode_ms": 84.6,
+   "rtf": 0.0249
+  },
+  {
+   "id": "BAC009S0002W0134",
+   "ref": "为改善居住条件再次申请贷款购买普通商品住房",
+   "text": "为改善居住条件，再次申请贷款购买普通商品住房。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 7.287,
+   "decode_ms": 161.8,
+   "rtf": 0.0222
+  },
+  {
+   "id": "BAC009S0002W0140",
+   "ref": "通过财政补贴手段鼓励购房的地区也在不断增加",
+   "text": "通过财政补贴手段，鼓励购房的地区也在不断增加。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 7.631,
+   "decode_ms": 174.6,
+   "rtf": 0.0229
+  },
+  {
+   "id": "BAC009S0002W0146",
+   "ref": "有业内人士当时就指出",
+   "text": "有业内人士当时就指出。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.639,
+   "decode_ms": 105.7,
+   "rtf": 0.0291
+  },
+  {
+   "id": "BAC009S0002W0152",
+   "ref": "强化地方调控主体责任",
+   "text": "强化地方调控主体责任。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.618,
+   "decode_ms": 128.5,
+   "rtf": 0.0355
+  },
+  {
+   "id": "BAC009S0002W0158",
+   "ref": "市场发挥经济规律做好市场的事情",
+   "text": "市场发挥经济规律，做好市场的事情。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.297,
+   "decode_ms": 123.7,
+   "rtf": 0.0288
+  },
+  {
+   "id": "BAC009S0002W0164",
+   "ref": "以填补国内市场下滑带来的损失",
+   "text": "以填补国内市场下滑带来的损失。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.356,
+   "decode_ms": 119.0,
+   "rtf": 0.0273
+  },
+  {
+   "id": "BAC009S0002W0170",
+   "ref": "正式进军澳大利亚市场",
+   "text": "正式进军澳大利亚市场。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.019,
+   "decode_ms": 101.8,
+   "rtf": 0.0337
+  },
+  {
+   "id": "BAC009S0002W0176",
+   "ref": "也进一步支持了房企到海外的投资",
+   "text": "也进一步支持了房企到海外的投资。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 6.189,
+   "decode_ms": 188.7,
+   "rtf": 0.0305
+  },
+  {
+   "id": "BAC009S0002W0182",
+   "ref": "中国内地的千万富豪中",
+   "text": "中国内地的千万富豪中。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.172,
+   "decode_ms": 97.5,
+   "rtf": 0.0307
+  },
+  {
+   "id": "BAC009S0002W0188",
+   "ref": "二零一一年十月一日",
+   "text": "2011年10月1日。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.2222222222222222,
+   "audio_s": 3.091,
+   "decode_ms": 92.2,
+   "rtf": 0.0298
+  },
+  {
+   "id": "BAC009S0002W0195",
+   "ref": "信号系统是一个争竞争性领域和竞争性的产品",
+   "text": "信号系统是一个真竞争性领域和竞争性的产品。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.05,
+   "audio_s": 6.529,
+   "decode_ms": 189.9,
+   "rtf": 0.0291
+  },
+  {
+   "id": "BAC009S0002W0201",
+   "ref": "但在特定的过程中间",
+   "text": "但在特定的过程中间。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.342,
+   "decode_ms": 99.8,
+   "rtf": 0.0299
+  },
+  {
+   "id": "BAC009S0002W0207",
+   "ref": "这样能够相对保障产品的质量",
+   "text": "这样能够相对保障产品的质量。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.609,
+   "decode_ms": 102.2,
+   "rtf": 0.0283
+  },
+  {
+   "id": "BAC009S0002W0213",
+   "ref": "政企兴分痼疾难消产业垄断有待破除",
+   "text": "政企兴奋痼疾难消，产业垄断有待破除。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0625,
+   "audio_s": 6.333,
+   "decode_ms": 182.0,
+   "rtf": 0.0287
+  },
+  {
+   "id": "BAC009S0002W0219",
+   "ref": "著名经济学家修泽对经济参考记者表示",
+   "text": "著名经济学家修泽对经济参考记者表示。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 7.897,
+   "decode_ms": 214.1,
+   "rtf": 0.0271
+  },
+  {
+   "id": "BAC009S0002W0225",
+   "ref": "垄断最大的危害就是会让竞争机制失效",
+   "text": "垄断最大的危害就是会让竞争机制失效。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 6.235,
+   "decode_ms": 183.4,
+   "rtf": 0.0294
+  },
+  {
+   "id": "BAC009S0002W0231",
+   "ref": "市场配置的功能就会失效",
+   "text": "市场配置的功能就会失效。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.248,
+   "decode_ms": 123.6,
+   "rtf": 0.0291
+  },
+  {
+   "id": "BAC009S0002W0237",
+   "ref": "但是有些行业民营企业还是很难进入",
+   "text": "但是有些行业民营企业还是很难进入。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 5.703,
+   "decode_ms": 162.3,
+   "rtf": 0.0285
+  },
+  {
+   "id": "BAC009S0002W0243",
+   "ref": "让民营企业让市场竞争企业介入",
+   "text": "让民营企业让市场竞争企业介入。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.455,
+   "decode_ms": 134.8,
+   "rtf": 0.0303
+  },
+  {
+   "id": "BAC009S0002W0249",
+   "ref": "实现省级政府全面公开三公经费",
+   "text": "实现省级政府全面公开三公经费。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 6.225,
+   "decode_ms": 173.1,
+   "rtf": 0.0278
+  },
+  {
+   "id": "BAC009S0002W0258",
+   "ref": "将汇聚近一百位行业高管",
+   "text": "将汇局近100位行业高管。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.2727272727272727,
+   "audio_s": 5.301,
+   "decode_ms": 151.9,
+   "rtf": 0.0287
+  },
+  {
+   "id": "BAC009S0002W0265",
+   "ref": "中美消费科技市场的展望",
+   "text": "中美消费科技市场的展望。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.214,
+   "decode_ms": 100.4,
+   "rtf": 0.0312
+  },
+  {
+   "id": "BAC009S0002W0271",
+   "ref": "总经济师高级研究总监",
+   "text": "总经济是高级研究总监。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.1,
+   "audio_s": 4.962,
+   "decode_ms": 152.3,
+   "rtf": 0.0307
+  },
+  {
+   "id": "BAC009S0002W0277",
+   "ref": "科技在电影电视和数字制作领域的影响力",
+   "text": "科技在电影、电视和数字制作领域的影响力。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 6.069,
+   "decode_ms": 155.2,
+   "rtf": 0.0256
+  },
+  {
+   "id": "BAC009S0002W0283",
+   "ref": "嘉里大酒店三楼浦东宴会厅三",
+   "text": "嘉里大酒店三楼浦东宴会厅山。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.07692307692307693,
+   "audio_s": 4.246,
+   "decode_ms": 122.0,
+   "rtf": 0.0287
+  },
+  {
+   "id": "BAC009S0002W0289",
+   "ref": "亚太高科技与电子产业主管",
+   "text": "亚太高科技与电子产业主管。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.151,
+   "decode_ms": 107.0,
+   "rtf": 0.0258
+  },
+  {
+   "id": "BAC009S0002W0295",
+   "ref": "嘉里大酒店三楼浦东宴会厅五",
+   "text": "嘉里大酒店三楼浦东宴会厅舞。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.07692307692307693,
+   "audio_s": 4.446,
+   "decode_ms": 129.6,
+   "rtf": 0.0291
+  },
+  {
+   "id": "BAC009S0002W0301",
+   "ref": "从智能手表到带嵌入式电子的健身手镯珠宝和衣服",
+   "text": "从智能手表到带嵌入式电子的健身手镯、珠宝和衣服。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 9.219,
+   "decode_ms": 220.9,
+   "rtf": 0.024
+  },
+  {
+   "id": "BAC009S0002W0307",
+   "ref": "昨日当有人上到机器人大世界二楼的时候",
+   "text": "昨日，当有人上到机器人大世界二楼的时候。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 6.069,
+   "decode_ms": 155.0,
+   "rtf": 0.0255
+  },
+  {
+   "id": "BAC009S0002W0313",
+   "ref": "机器人就会来到顾客的座位前",
+   "text": "机器人就会来到顾客的座位前。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.057,
+   "decode_ms": 109.5,
+   "rtf": 0.027
+  },
+  {
+   "id": "BAC009S0002W0319",
+   "ref": "看点三它们是国内第一代消防机器人",
+   "text": "看点3，他们是国内第一代消防机器人。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0625,
+   "audio_s": 5.184,
+   "decode_ms": 140.2,
+   "rtf": 0.027
+  },
+  {
+   "id": "BAC009S0002W0325",
+   "ref": "看点四它琴棋书画样样精",
+   "text": "看电视，他琴棋书画，样样精。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.2727272727272727,
+   "audio_s": 3.856,
+   "decode_ms": 105.5,
+   "rtf": 0.0274
+  },
+  {
+   "id": "BAC009S0002W0331",
+   "ref": "类似的五子棋机器人",
+   "text": "类似的五子棋机器人。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.055,
+   "decode_ms": 85.8,
+   "rtf": 0.0281
+  },
+  {
+   "id": "BAC009S0002W0337",
+   "ref": "通过无线蓝牙传到电脑上",
+   "text": "通过无线蓝牙传到电脑上。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.087,
+   "decode_ms": 86.0,
+   "rtf": 0.0279
+  },
+  {
+   "id": "BAC009S0002W0343",
+   "ref": "杭州奥体中心仅与西湖区一江之隔",
+   "text": "杭州奥体中心仅与西湖区一江之隔。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.689,
+   "decode_ms": 124.9,
+   "rtf": 0.0266
+  },
+  {
+   "id": "BAC009S0002W0349",
+   "ref": "虽然杭州将为亚运会投入多少还没有官方声音流出",
+   "text": "虽然杭州将为亚运会投入多少，还没有官方声音流出。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 8.292,
+   "decode_ms": 206.2,
+   "rtf": 0.0249
+  },
+  {
+   "id": "BAC009S0002W0355",
+   "ref": "预计杭州举办亚运会的投入将只多不少",
+   "text": "预计杭州举办亚运会的投入将只多不少。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 5.531,
+   "decode_ms": 133.7,
+   "rtf": 0.0242
+  },
+  {
+   "id": "BAC009S0002W0361",
+   "ref": "这一系列工程和项目的开展",
+   "text": "这一系列工程和项目的开展。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.361,
+   "decode_ms": 90.9,
+   "rtf": 0.027
+  },
+  {
+   "id": "BAC009S0002W0367",
+   "ref": "这届亚运会来到阿里巴巴总部",
+   "text": "这届亚运会来到阿里巴巴总部。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.688,
+   "decode_ms": 133.8,
+   "rtf": 0.0285
+  },
+  {
+   "id": "BAC009S0002W0373",
+   "ref": "阿里巴巴集团宣布成立阿里体育集团",
+   "text": "阿里巴巴集团宣布成立阿里体育集团。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 5.584,
+   "decode_ms": 140.4,
+   "rtf": 0.0251
+  },
+  {
+   "id": "BAC009S0002W0380",
+   "ref": "帮助用户将后端交易体系云计算大数据等基础设施",
+   "text": "帮助用户将后端交易体系、云计算大数据等基础设施。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 7.891,
+   "decode_ms": 190.5,
+   "rtf": 0.0241
+  },
+  {
+   "id": "BAC009S0002W0387",
+   "ref": "两大首尾呼应的盛会都有其特殊意义",
+   "text": "两大首委呼应的盛会都有其特殊意义。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0625,
+   "audio_s": 5.29,
+   "decode_ms": 148.6,
+   "rtf": 0.0281
+  },
+  {
+   "id": "BAC009S0002W0393",
+   "ref": "也是体育迷关心的问题",
+   "text": "也是体育迷关心的问题。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.034,
+   "decode_ms": 83.5,
+   "rtf": 0.0275
+  },
+  {
+   "id": "BAC009S0002W0401",
+   "ref": "但中国民间声音虽大",
+   "text": "但中国民间声音虽大。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.024,
+   "decode_ms": 81.8,
+   "rtf": 0.027
+  },
+  {
+   "id": "BAC009S0002W0407",
+   "ref": "这条领带的另一端变成了导火索",
+   "text": "这条领带的另一端变成了导火索。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.014,
+   "decode_ms": 102.2,
+   "rtf": 0.0254
+  },
+  {
+   "id": "BAC009S0002W0414",
+   "ref": "关咏荷自曝曾打算带女儿同行女儿这么大了",
+   "text": "关勇和自报曾打算带女儿同行，女儿这么大了。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.15789473684210525,
+   "audio_s": 5.752,
+   "decode_ms": 146.5,
+   "rtf": 0.0255
+  },
+  {
+   "id": "BAC009S0002W0420",
+   "ref": "但却被这次路途中加油站的厕所吓到",
+   "text": "但却被这次路途中加油站的厕所吓到。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.214,
+   "decode_ms": 110.2,
+   "rtf": 0.0261
+  },
+  {
+   "id": "BAC009S0002W0426",
+   "ref": "据台湾媒体报道",
+   "text": "据台湾媒体报道。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.203,
+   "decode_ms": 84.4,
+   "rtf": 0.0263
+  },
+  {
+   "id": "BAC009S0002W0432",
+   "ref": "一辆无牌照的二轮摩托车与一名五岁小孩发生碰撞",
+   "text": "一辆无牌照的二轮摩托与一名5岁小孩发生碰撞。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.045454545454545456,
+   "audio_s": 6.901,
+   "decode_ms": 170.6,
+   "rtf": 0.0247
+  },
+  {
+   "id": "BAC009S0002W0438",
+   "ref": "警方在事发现场进行调查取证照片来自网络",
+   "text": "警方在事发现场进行调查，取证照片来自网络。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 5.816,
+   "decode_ms": 150.2,
+   "rtf": 0.0258
+  },
+  {
+   "id": "BAC009S0002W0444",
+   "ref": "孩子患白血病三年多来",
+   "text": "孩子患白血病三年多来。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.843,
+   "decode_ms": 126.0,
+   "rtf": 0.026
+  },
+  {
+   "id": "BAC009S0002W0450",
+   "ref": "男童坠下时先砸到了这辆车",
+   "text": "南从坠下时先砸到了这辆车。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.16666666666666666,
+   "audio_s": 4.705,
+   "decode_ms": 153.9,
+   "rtf": 0.0327
+  },
+  {
+   "id": "BAC009S0002W0456",
+   "ref": "妈妈带着鹏鹏前往顺义区首儿李娇儿童医院口腔科看病",
+   "text": "妈妈带着鹏鹏前往顺义区首儿理交儿童医院口腔科看病。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.08333333333333333,
+   "audio_s": 9.01,
+   "decode_ms": 285.2,
+   "rtf": 0.0317
+  },
+  {
+   "id": "BAC009S0002W0462",
+   "ref": "小叮当的父母亲友",
+   "text": "小叮当的父母亲友。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.145,
+   "decode_ms": 95.3,
+   "rtf": 0.0303
+  },
+  {
+   "id": "BAC009S0002W0468",
+   "ref": "我宁可把孩子留在身边照顾",
+   "text": "我宁可把孩子留在身边照顾。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.077,
+   "decode_ms": 139.2,
+   "rtf": 0.0342
+  },
+  {
+   "id": "BAC009S0002W0474",
+   "ref": "五岁男童每天只喝可乐不喝水十四颗牙齿齐根烂掉",
+   "text": "5岁男童每天只喝可乐不喝水，14颗牙齿齐根烂掉。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.045454545454545456,
+   "audio_s": 7.291,
+   "decode_ms": 202.2,
+   "rtf": 0.0277
+  },
+  {
+   "id": "BAC009S0002W0480",
+   "ref": "晚上喝了牛奶不刷牙",
+   "text": "晚上喝了牛奶不刷牙。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.74,
+   "decode_ms": 108.9,
+   "rtf": 0.0291
+  },
+  {
+   "id": "BAC009S0002W0486",
+   "ref": "新乡小冀镇五岁男孩王明涵在家门口神秘失踪",
+   "text": "新疆小记镇5岁男孩王明涵在家门口神秘失踪。",
+   "domain": "real",
+   "variant": "human",
+   "terms": [],
+   "cer": 0.1,
+   "audio_s": 6.175,
+   "decode_ms": 171.8,
+   "rtf": 0.0278
+  }
+ ],
+ "rows_sci": [
+  {
+   "id": "general_01_melotts",
+   "ref": "你好，我想测试一下本地语音识别系统。",
+   "text": "你好，我想测试一下本地语音识别系统。",
+   "domain": "general",
+   "variant": "melotts",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 2.819,
+   "decode_ms": 111.2,
+   "rtf": 0.0394
+  },
+  {
+   "id": "general_01_sapi",
+   "ref": "你好，我想测试一下本地语音识别系统。",
+   "text": "你好，我想测试一下本地语音识别系统。",
+   "domain": "general",
+   "variant": "sapi",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.778,
+   "decode_ms": 151.2,
+   "rtf": 0.0316
+  },
+  {
+   "id": "general_02_melotts",
+   "ref": "今天下午我要整理一下实验数据。",
+   "text": "今天下午我要整理一下实验收据。",
+   "domain": "general",
+   "variant": "melotts",
+   "terms": [],
+   "cer": 0.07142857142857142,
+   "audio_s": 2.426,
+   "decode_ms": 90.9,
+   "rtf": 0.0375
+  },
+  {
+   "id": "general_02_sapi",
+   "ref": "今天下午我要整理一下实验数据。",
+   "text": "今天下午我要整理一下实验数据。",
+   "domain": "general",
+   "variant": "sapi",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 3.883,
+   "decode_ms": 125.2,
+   "rtf": 0.0323
+  },
+  {
+   "id": "general_03_melotts",
+   "ref": "你好，我现在正在测试本地语音助手。",
+   "text": "你好，我现在正在测试本地语音助手。",
+   "domain": "general",
+   "variant": "melotts",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 2.761,
+   "decode_ms": 97.9,
+   "rtf": 0.0355
+  },
+  {
+   "id": "general_03_sapi",
+   "ref": "你好，我现在正在测试本地语音助手。",
+   "text": "你好，我现在正在测试本地语音助手。",
+   "domain": "general",
+   "variant": "sapi",
+   "terms": [],
+   "cer": 0.0,
+   "audio_s": 4.638,
+   "decode_ms": 144.4,
+   "rtf": 0.0311
+  },
+  {
+   "id": "chem_01_melotts",
+   "ref": "铜离子可以与EDTA发生络合。",
+   "text": "铜离子可以与一地T发生落合。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "络合",
+    "EDTA"
+   ],
+   "cer": 0.2857142857142857,
+   "audio_s": 2.345,
+   "decode_ms": 82.7,
+   "rtf": 0.0353,
+   "term_hit": "0/2"
+  },
+  {
+   "id": "chem_01_sapi",
+   "ref": "铜离子可以与EDTA发生络合。",
+   "text": "铜离子可以与EDDA发生络合。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "络合",
+    "EDTA"
+   ],
+   "cer": 0.07142857142857142,
+   "audio_s": 3.783,
+   "decode_ms": 120.4,
+   "rtf": 0.0318,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_02_melotts",
+   "ref": "这里需要考虑配体的配位数。",
+   "text": "这里需要考虑配题的配位数。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "配体",
+    "配位数"
+   ],
+   "cer": 0.08333333333333333,
+   "audio_s": 2.392,
+   "decode_ms": 79.0,
+   "rtf": 0.033,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_02_sapi",
+   "ref": "这里需要考虑配体的配位数。",
+   "text": "这里需要考虑配体的配位数。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "配体",
+    "配位数"
+   ],
+   "cer": 0.0,
+   "audio_s": 3.468,
+   "decode_ms": 103.4,
+   "rtf": 0.0298,
+   "term_hit": "2/2"
+  },
+  {
+   "id": "chem_03_melotts",
+   "ref": "这个反应属于Favorskii重排。",
+   "text": "这个反应属于FDOSKI正盘。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Favorskii",
+    "重排"
+   ],
+   "cer": 0.35294117647058826,
+   "audio_s": 2.821,
+   "decode_ms": 86.4,
+   "rtf": 0.0306,
+   "term_hit": "0/2"
+  },
+  {
+   "id": "chem_03_sapi",
+   "ref": "这个反应属于Favorskii重排。",
+   "text": "这个反应属于favorly重排。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Favorskii",
+    "重排"
+   ],
+   "cer": 0.23529411764705882,
+   "audio_s": 3.458,
+   "decode_ms": 114.5,
+   "rtf": 0.0331,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_04_melotts",
+   "ref": "Baeyer-Villiger氧化通常涉及迁移能力差异。",
+   "text": "列于YEREHG二氧化通常设几千亿能力差异。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Baeyer-Villiger",
+    "氧化"
+   ],
+   "cer": 0.5555555555555556,
+   "audio_s": 4.145,
+   "decode_ms": 153.3,
+   "rtf": 0.037,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_04_sapi",
+   "ref": "Baeyer-Villiger氧化通常涉及迁移能力差异。",
+   "text": "vageger氧化通常涉及迁移能力差异。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Baeyer-Villiger",
+    "氧化"
+   ],
+   "cer": 0.37037037037037035,
+   "audio_s": 4.923,
+   "decode_ms": 169.0,
+   "rtf": 0.0343,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_05_melotts",
+   "ref": "Michaelis-Menten动力学可以使用稳态近似处理。",
+   "text": "my col stemNT and动力学可以使用稳钛近次处理。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Michaelis-Menten",
+    "动力学"
+   ],
+   "cer": 0.41379310344827586,
+   "audio_s": 3.82,
+   "decode_ms": 133.6,
+   "rtf": 0.035,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_05_sapi",
+   "ref": "Michaelis-Menten动力学可以使用稳态近似处理。",
+   "text": "micusmanden动力学可以使用稳态近似处理。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Michaelis-Menten",
+    "动力学"
+   ],
+   "cer": 0.27586206896551724,
+   "audio_s": 5.338,
+   "decode_ms": 194.4,
+   "rtf": 0.0364,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_06_melotts",
+   "ref": "铜离子与EDTA形成稳定的络合物。",
+   "text": "红离子与一地铁形成稳定的络合物。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "络合",
+    "EDTA"
+   ],
+   "cer": 0.3125,
+   "audio_s": 2.601,
+   "decode_ms": 101.9,
+   "rtf": 0.0392,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_06_sapi",
+   "ref": "铜离子与EDTA形成稳定的络合物。",
+   "text": "铜离子与EDDA形成稳定的络合物。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "络合",
+    "EDTA"
+   ],
+   "cer": 0.0625,
+   "audio_s": 4.218,
+   "decode_ms": 141.2,
+   "rtf": 0.0335,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_07_melotts",
+   "ref": "这里需要考虑Jahn-Teller效应。",
+   "text": "这里需要考虑jatyler效应。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Jahn-Teller",
+    "效应"
+   ],
+   "cer": 0.2631578947368421,
+   "audio_s": 2.159,
+   "decode_ms": 87.4,
+   "rtf": 0.0405,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_07_sapi",
+   "ref": "这里需要考虑Jahn-Teller效应。",
+   "text": "这里需要考虑装ter效应。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Jahn-Teller",
+    "效应"
+   ],
+   "cer": 0.42105263157894735,
+   "audio_s": 3.733,
+   "decode_ms": 120.4,
+   "rtf": 0.0323,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_08_melotts",
+   "ref": "配位数是六的时候晶场分裂能更大。",
+   "text": "配位数是6的时候经场分裂能更大。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "配位数",
+    "晶场分裂"
+   ],
+   "cer": 0.06666666666666667,
+   "audio_s": 2.81,
+   "decode_ms": 93.0,
+   "rtf": 0.0331,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_08_sapi",
+   "ref": "配位数是六的时候晶场分裂能更大。",
+   "text": "配位数是6的时候经常分裂能更大。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "配位数",
+    "晶场分裂"
+   ],
+   "cer": 0.13333333333333333,
+   "audio_s": 4.203,
+   "decode_ms": 127.8,
+   "rtf": 0.0304,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_09_melotts",
+   "ref": "这个反应的Hammett常数是正值。",
+   "text": "这个反映的h美的常书是政治。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Hammett"
+   ],
+   "cer": 0.5882352941176471,
+   "audio_s": 2.357,
+   "decode_ms": 79.2,
+   "rtf": 0.0336,
+   "term_hit": "0/1"
+  },
+  {
+   "id": "chem_09_sapi",
+   "ref": "这个反应的Hammett常数是正值。",
+   "text": "这个反应的ham常数是正值。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Hammett"
+   ],
+   "cer": 0.23529411764705882,
+   "audio_s": 3.493,
+   "decode_ms": 105.9,
+   "rtf": 0.0303,
+   "term_hit": "0/1"
+  },
+  {
+   "id": "chem_10_melotts",
+   "ref": "Cannizzaro反应需要浓碱条件。",
+   "text": "看你s扰反应需要冷检条件。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Cannizzaro"
+   ],
+   "cer": 0.6666666666666666,
+   "audio_s": 2.357,
+   "decode_ms": 91.5,
+   "rtf": 0.0388,
+   "term_hit": "0/1"
+  },
+  {
+   "id": "chem_10_sapi",
+   "ref": "Cannizzaro反应需要浓碱条件。",
+   "text": "caniceze反应需要浓碱条件。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Cannizzaro"
+   ],
+   "cer": 0.3333333333333333,
+   "audio_s": 3.728,
+   "decode_ms": 117.4,
+   "rtf": 0.0315,
+   "term_hit": "0/1"
+  },
+  {
+   "id": "chem_11_melotts",
+   "ref": "螯合物的稳定性通常高于单齿配体。",
+   "text": "薄合物的稳定性通常高于单指配体。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "螯合",
+    "配体"
+   ],
+   "cer": 0.13333333333333333,
+   "audio_s": 2.868,
+   "decode_ms": 94.5,
+   "rtf": 0.033,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "chem_11_sapi",
+   "ref": "螯合物的稳定性通常高于单齿配体。",
+   "text": "螯合物的稳定性通常高于单齿配体。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "螯合",
+    "配体"
+   ],
+   "cer": 0.0,
+   "audio_s": 4.233,
+   "decode_ms": 132.3,
+   "rtf": 0.0313,
+   "term_hit": "2/2"
+  },
+  {
+   "id": "phys_01_melotts",
+   "ref": "这里可以使用Levi-Civita联络。",
+   "text": "这里可以使用的USCIVIT有联络。",
+   "domain": "physics",
+   "variant": "melotts",
+   "terms": [
+    "Levi-Civita",
+    "联络"
+   ],
+   "cer": 0.3157894736842105,
+   "audio_s": 2.717,
+   "decode_ms": 93.7,
+   "rtf": 0.0345,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "phys_01_sapi",
+   "ref": "这里可以使用Levi-Civita联络。",
+   "text": "这里可以使用leviset联络。",
+   "domain": "physics",
+   "variant": "sapi",
+   "terms": [
+    "Levi-Civita",
+    "联络"
+   ],
+   "cer": 0.3157894736842105,
+   "audio_s": 3.893,
+   "decode_ms": 119.4,
+   "rtf": 0.0307,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "phys_02_melotts",
+   "ref": "这是Minkowski时空中的proper time。",
+   "text": "这是MINTWSKI时空中的proper time。",
+   "domain": "physics",
+   "variant": "melotts",
+   "terms": [
+    "Minkowski",
+    "proper time"
+   ],
+   "cer": 0.08,
+   "audio_s": 3.704,
+   "decode_ms": 116.2,
+   "rtf": 0.0314,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "phys_02_sapi",
+   "ref": "这是Minkowski时空中的proper time。",
+   "text": "这是minkoky时空中的proper time。",
+   "domain": "physics",
+   "variant": "sapi",
+   "terms": [
+    "Minkowski",
+    "proper time"
+   ],
+   "cer": 0.12,
+   "audio_s": 3.844,
+   "decode_ms": 112.4,
+   "rtf": 0.0293,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "phys_03_melotts",
+   "ref": "哈密顿量必须是厄米算符。",
+   "text": "阿密顿粮必须收恶弥散服。",
+   "domain": "physics",
+   "variant": "melotts",
+   "terms": [
+    "哈密顿量",
+    "厄米"
+   ],
+   "cer": 0.6363636363636364,
+   "audio_s": 2.186,
+   "decode_ms": 78.5,
+   "rtf": 0.0359,
+   "term_hit": "0/2"
+  },
+  {
+   "id": "phys_03_sapi",
+   "ref": "哈密顿量必须是厄米算符。",
+   "text": "哈密顿量必须是厄米算符。",
+   "domain": "physics",
+   "variant": "sapi",
+   "terms": [
+    "哈密顿量",
+    "厄米"
+   ],
+   "cer": 0.0,
+   "audio_s": 3.413,
+   "decode_ms": 106.3,
+   "rtf": 0.0311,
+   "term_hit": "2/2"
+  },
+  {
+   "id": "phys_04_melotts",
+   "ref": "布里渊区边界处的能带结构需要仔细计算。",
+   "text": "物理院区边界处的能带结构需要仔细计算。",
+   "domain": "physics",
+   "variant": "melotts",
+   "terms": [
+    "布里渊区",
+    "能带"
+   ],
+   "cer": 0.16666666666666666,
+   "audio_s": 3.123,
+   "decode_ms": 98.4,
+   "rtf": 0.0315,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "phys_04_sapi",
+   "ref": "布里渊区边界处的能带结构需要仔细计算。",
+   "text": "不理冤曲边界处的能带结构需要仔细计算。",
+   "domain": "physics",
+   "variant": "sapi",
+   "terms": [
+    "布里渊区",
+    "能带"
+   ],
+   "cer": 0.2222222222222222,
+   "audio_s": 4.822,
+   "decode_ms": 137.0,
+   "rtf": 0.0284,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "phys_05_melotts",
+   "ref": "狄拉克方程描述了自旋二分之一的粒子。",
+   "text": "伊拉克方程描述了自学2分之1的例子。",
+   "domain": "physics",
+   "variant": "melotts",
+   "terms": [
+    "狄拉克"
+   ],
+   "cer": 0.17647058823529413,
+   "audio_s": 3.007,
+   "decode_ms": 92.5,
+   "rtf": 0.0308,
+   "term_hit": "0/1"
+  },
+  {
+   "id": "phys_05_sapi",
+   "ref": "狄拉克方程描述了自旋二分之一的粒子。",
+   "text": "迪拉克方程描述了自弦2分之1的粒子。",
+   "domain": "physics",
+   "variant": "sapi",
+   "terms": [
+    "狄拉克"
+   ],
+   "cer": 0.11764705882352941,
+   "audio_s": 4.408,
+   "decode_ms": 153.7,
+   "rtf": 0.0349,
+   "term_hit": "0/1"
+  },
+  {
+   "id": "phys_06_melotts",
+   "ref": "拉格朗日量对时间的积分给出作用量。",
+   "text": "把和朗日量对时间的积分给出作用料。",
+   "domain": "physics",
+   "variant": "melotts",
+   "terms": [
+    "拉格朗日量"
+   ],
+   "cer": 0.1875,
+   "audio_s": 2.81,
+   "decode_ms": 102.0,
+   "rtf": 0.0363,
+   "term_hit": "0/1"
+  },
+  {
+   "id": "phys_06_sapi",
+   "ref": "拉格朗日量对时间的积分给出作用量。",
+   "text": "拉格朗日量对时间的积分给出作用量。",
+   "domain": "physics",
+   "variant": "sapi",
+   "terms": [
+    "拉格朗日量"
+   ],
+   "cer": 0.0,
+   "audio_s": 4.258,
+   "decode_ms": 132.9,
+   "rtf": 0.0312,
+   "term_hit": "1/1"
+  },
+  {
+   "id": "bio_01_melotts",
+   "ref": "GPCR激活后通过G蛋白调控下游信号。",
+   "text": "GpC激活后通过G蛋白调控下有信号。",
+   "domain": "biology",
+   "variant": "melotts",
+   "terms": [
+    "GPCR",
+    "G蛋白"
+   ],
+   "cer": 0.1111111111111111,
+   "audio_s": 3.355,
+   "decode_ms": 101.1,
+   "rtf": 0.0301,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "bio_01_sapi",
+   "ref": "GPCR激活后通过G蛋白调控下游信号。",
+   "text": "GPCR激活后，通过G蛋白调控下游信号。",
+   "domain": "biology",
+   "variant": "sapi",
+   "terms": [
+    "GPCR",
+    "G蛋白"
+   ],
+   "cer": 0.0,
+   "audio_s": 5.063,
+   "decode_ms": 171.7,
+   "rtf": 0.0339,
+   "term_hit": "2/2"
+  },
+  {
+   "id": "bio_02_melotts",
+   "ref": "这里涉及JAK-STAT信号通路。",
+   "text": "这里涉及Jtt信号通路。",
+   "domain": "biology",
+   "variant": "melotts",
+   "terms": [
+    "JAK-STAT",
+    "通路"
+   ],
+   "cer": 0.3125,
+   "audio_s": 2.589,
+   "decode_ms": 95.0,
+   "rtf": 0.0367,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "bio_02_sapi",
+   "ref": "这里涉及JAK-STAT信号通路。",
+   "text": "这里涉及jackt信号通路。",
+   "domain": "biology",
+   "variant": "sapi",
+   "terms": [
+    "JAK-STAT",
+    "通路"
+   ],
+   "cer": 0.3125,
+   "audio_s": 3.898,
+   "decode_ms": 123.7,
+   "rtf": 0.0317,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "bio_03_melotts",
+   "ref": "MAPK和PI3K通路都会影响细胞增殖。",
+   "text": "毛皮铁和派三胚通露都会影响细胞增殖。",
+   "domain": "biology",
+   "variant": "melotts",
+   "terms": [
+    "MAPK",
+    "PI3K"
+   ],
+   "cer": 0.42105263157894735,
+   "audio_s": 3.286,
+   "decode_ms": 106.8,
+   "rtf": 0.0325,
+   "term_hit": "0/2"
+  },
+  {
+   "id": "bio_03_sapi",
+   "ref": "MAPK和PI3K通路都会影响细胞增殖。",
+   "text": "MAPK和PI3K通路都会影响细胞增值。",
+   "domain": "biology",
+   "variant": "sapi",
+   "terms": [
+    "MAPK",
+    "PI3K"
+   ],
+   "cer": 0.05263157894736842,
+   "audio_s": 5.243,
+   "decode_ms": 156.8,
+   "rtf": 0.0299,
+   "term_hit": "2/2"
+  },
+  {
+   "id": "bio_04_melotts",
+   "ref": "泛素化与磷酸化是两种常见的翻译后修饰。",
+   "text": "反俗化与磷酸化是两种常见的翻译后修饰。",
+   "domain": "biology",
+   "variant": "melotts",
+   "terms": [
+    "泛素化",
+    "磷酸化"
+   ],
+   "cer": 0.1111111111111111,
+   "audio_s": 3.262,
+   "decode_ms": 102.0,
+   "rtf": 0.0313,
+   "term_hit": "1/2"
+  },
+  {
+   "id": "bio_04_sapi",
+   "ref": "泛素化与磷酸化是两种常见的翻译后修饰。",
+   "text": "泛素化与磷酸化是两种常见的翻译后修饰。",
+   "domain": "biology",
+   "variant": "sapi",
+   "terms": [
+    "泛素化",
+    "磷酸化"
+   ],
+   "cer": 0.0,
+   "audio_s": 4.912,
+   "decode_ms": 147.6,
+   "rtf": 0.03,
+   "term_hit": "2/2"
+  },
+  {
+   "id": "bio_05_melotts",
+   "ref": "糖异生主要发生在肝脏。",
+   "text": "好医生主要发生在肝脏。",
+   "domain": "biology",
+   "variant": "melotts",
+   "terms": [
+    "糖异生"
+   ],
+   "cer": 0.2,
+   "audio_s": 1.834,
+   "decode_ms": 67.9,
+   "rtf": 0.037,
+   "term_hit": "0/1"
+  },
+  {
+   "id": "bio_05_sapi",
+   "ref": "糖异生主要发生在肝脏。",
+   "text": "糖一生主要发生在肝脏。",
+   "domain": "biology",
+   "variant": "sapi",
+   "terms": [
+    "糖异生"
+   ],
+   "cer": 0.1,
+   "audio_s": 3.088,
+   "decode_ms": 97.4,
+   "rtf": 0.0315,
+   "term_hit": "0/1"
+  },
+  {
+   "id": "mixed_01_melotts",
+   "ref": "Favorskii rearrangement是一种重要的有机重排反应。",
+   "text": "the new RK Harry arrangement是一种重要的有机重态反应。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Favorskii",
+    "rearrangement"
+   ],
+   "cer": 0.35294117647058826,
+   "audio_s": 4.043,
+   "decode_ms": 121.6,
+   "rtf": 0.0301,
+   "term_hit": "0/2"
+  },
+  {
+   "id": "mixed_01_sapi",
+   "ref": "Favorskii rearrangement是一种重要的有机重排反应。",
+   "text": "faveverky rearrangement是一种重要的有机重态反应。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Favorskii",
+    "rearrangement"
+   ],
+   "cer": 0.20588235294117646,
+   "audio_s": 5.148,
+   "decode_ms": 150.4,
+   "rtf": 0.0292,
+   "term_hit": "1/2"
+  }
+ ]
+}

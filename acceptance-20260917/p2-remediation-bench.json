@@ -1,0 +1,83 @@
+{
+  "timestamp": "2026-09-18 19:08:02",
+  "standby_initial": {
+    "main_pid": 38700,
+    "main_ws_mb": 1.7,
+    "children": [],
+    "children_count": 0,
+    "total_tree_mb": 1.7
+  },
+  "active_live2d": {
+    "main_pid": 38700,
+    "main_ws_mb": 39.49,
+    "children": [
+      {
+        "pid": 35644,
+        "name": "msedgewebview2.exe",
+        "ws_mb": 131.47
+      },
+      {
+        "pid": 22480,
+        "name": "msedgewebview2.exe",
+        "ws_mb": 10.3
+      },
+      {
+        "pid": 24348,
+        "name": "msedgewebview2.exe",
+        "ws_mb": 133.18
+      },
+      {
+        "pid": 38784,
+        "name": "msedgewebview2.exe",
+        "ws_mb": 39.82
+      },
+      {
+        "pid": 28168,
+        "name": "msedgewebview2.exe",
+        "ws_mb": 18.54
+      },
+      {
+        "pid": 38828,
+        "name": "msedgewebview2.exe",
+        "ws_mb": 112.07
+      }
+    ],
+    "children_count": 6,
+    "total_tree_mb": 484.87
+  },
+  "dormancy_after_render": {
+    "main_pid": 38700,
+    "main_ws_mb": 1.04,
+    "children": [],
+    "children_count": 0,
+    "total_tree_mb": 1.04
+  },
+  "rebuild_latencies": {
+    "t_visible_ms": 110.5,
+    "t_ws_ready_ms": 145.1
+  },
+  "dormancy_final": {
+    "main_pid": 38700,
+    "main_ws_mb": 2.19,
+    "children": [
+      {
+        "pid": 5396,
+        "name": "msedgewebview2.exe",
+        "ws_mb": 30.59
+      },
+      {
+        "pid": 6160,
+        "name": "msedgewebview2.exe",
+        "ws_mb": 10.3
+      }
+    ],
+    "children_count": 2,
+    "total_tree_mb": 43.08
+  },
+  "m1_engine_switch": {
+    "target": "en_nuke_debate.yaml",
+    "asr_engine": "VoiceRecognition",
+    "tts_engine": "TTSEngine",
+    "verdict": "PASS"
+  }
+}

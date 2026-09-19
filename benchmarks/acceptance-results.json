@@ -1,0 +1,137 @@
+{
+ "engine": "sensevoice",
+ "with_audio": false,
+ "tests": {
+  "A": {
+   "raw": "红离子可以与EDT发生落合。",
+   "corrected": "红离子可以与EDTA发生络合。",
+   "domain": "chemistry",
+   "applied": [
+    {
+     "from": "落合",
+     "to": "络合",
+     "domain": "chemistry",
+     "confidence": 0.85,
+     "source": "rule"
+    },
+    {
+     "from": "EDT",
+     "to": "EDTA",
+     "domain": "chemistry",
+     "confidence": 0.75,
+     "source": "fuzzy"
+    }
+   ],
+   "archived": {
+    "id": 2,
+    "ts": 1789608054.4859095,
+    "iso": "2026-09-17 09:20:54",
+    "source": "assistant",
+    "raw": "这个说法不准确哦。红离子与EDTA确实能发生络合反应，但通常红离子这类金属离子与EDTA形成的络合物稳定性及具体反应情况，需结合具体离子的种类和条件来判断，不能简单说“红离子可以与EDTA发生络合”这么笼统，不过核心络合反应是存在的。",
+    "text": "这个说法不准确哦。红离子与EDTA确实能发生络合反应，但通常红离子这类金属离子与EDTA形成的络合物稳定性及具体反应情况，需结合具体离子的种类和条件来判断，不能简单说“红离子可以与EDTA发生络合”这么笼统，不过核心络合反应是存在的。",
+    "domain": "chemistry",
+    "audio": "",
+    "score": 0.0
+   },
+   "reply": "这个说法不准确哦。红离子与EDTA确实能发生络合反应，但通常红离子这类金属离子与EDTA形成的络合物稳定性及具体反应情况，需结合具体离子的种类和条件来判断，不能简单说“红离子可以与EDTA发生络合”这么笼统，不过核心络合反应是存在的。",
+   "term_ok": true,
+   "pass": true
+  },
+  "B": {
+   "raw": "这里需要考虑jatler效应。",
+   "corrected": "这里需要考虑jatler效应。",
+   "applied": [],
+   "pass": true
+  },
+  "D": {
+   "attempts": [
+    {
+     "renderer": "sapi",
+     "question_asr": "我刚才关于漯河滴定说了什么？",
+     "hits": 1,
+     "reply": "根据历史记录，你提到准备比较两种络合滴定方案，这是基于ALPHA-7392的测试记忆。"
+    }
+   ],
+   "question_asr": "我刚才关于漯河滴定说了什么？",
+   "question_corrected": "我刚才关于漯河滴定说了什么？",
+   "history_found": 1,
+   "hits": [
+    "测试记忆ALPHA-7392。我准备比较两种络合滴定方案。"
+   ],
+   "reply": "根据历史记录，你提到准备比较两种络合滴定方案，这是基于ALPHA-7392的测试记忆。",
+   "used_evidence": true,
+   "pass": true
+  },
+  "E": {
+   "question_asr": "我昨天是不是说过我要去火星？",
+   "history_found": 0,
+   "reply": "我没有找到你昨天说过要去火星的相关历史记录，所以无法确认你是否说过要去火星。",
+   "admits_no_record": true,
+   "pass": true
+  },
+  "C": {
+   "speaking_detected": true,
+   "silence_ms": 292.2,
+   "commit_ms": 3273.0,
+   "barge_in_ms": 3273.0,
+   "queued_before": 0,
+   "playback_rms": 0.0,
+   "gate_rms": 0.015,
+   "injected_rms": 0.18,
+   "gate_at_injection": 0.015,
+   "margin": 12.0,
+   "dropped": 0,
+   "pass": true
+  },
+  "mode_separation": {
+   "replies": 0,
+   "spoken_chunks": 0,
+   "archived": true,
+   "pass": true
+  }
+ },
+ "latency": {
+  "n": 6,
+  "asr_ms": [
+   75.6,
+   81.0,
+   246.9,
+   104.3,
+   0.0,
+   211.7
+  ],
+  "llm_ttft_ms": [
+   469.2,
+   387.2,
+   660.9,
+   581.5,
+   413.2,
+   277.5
+  ],
+  "tts_ttfa_ms": [
+   432.8,
+   626.9,
+   374.6,
+   723.7,
+   963.7,
+   282.8
+  ],
+  "e2e_ms": [
+   1093.1,
+   1563.0,
+   1968.1,
+   1921.5,
+   1727.8,
+   1257.7
+  ],
+  "vad_silence_s": 0.5
+ },
+ "stats": {
+  "utterances": 6,
+  "live_turns": 5,
+  "barge_ins": 1,
+  "duck_ignored": 0,
+  "backchannels": 0,
+  "interrupt_candidates": 1
+ }
+}

@@ -1,0 +1,76 @@
+{
+ "label": "spark-x2.5-4b-q8-0",
+ "served_model": "local-live-llm",
+ "endpoint": "http://127.0.0.1:1234/v1",
+ "vram_used_mb": {
+  "before": 6168.0,
+  "after": 6388.0
+ },
+ "fast_ttft_ms": {
+  "median": 122.3,
+  "min": 105.9,
+  "max": 127.9
+ },
+ "rows": [
+  {
+   "task": "chat",
+   "mode": "fast",
+   "ttft_ms": 107.2,
+   "total_ms": 484.4,
+   "chars": 30,
+   "chars_per_s": 61.9,
+   "reply": "我是本地语音助手，能帮你解答本地相关问题，提供各种便捷服务。",
+   "error": null
+  },
+  {
+   "task": "short_cmd",
+   "mode": "fast",
+   "ttft_ms": 122.3,
+   "total_ms": 774.0,
+   "chars": 53,
+   "chars_per_s": 68.5,
+   "reply": "“我需要整理实验数据”可改为“我需要对实验数据进行系统整理”，表述更正式、严谨，突出整理的规范性与系统性。",
+   "error": null
+  },
+  {
+   "task": "simple_chem",
+   "mode": "fast",
+   "ttft_ms": 105.9,
+   "total_ms": 886.7,
+   "chars": 53,
+   "chars_per_s": 59.8,
+   "reply": "铜离子和EDTA能形成稳定络合物，是因为二者结合时能产生较强的配位作用，释放出大量能量，使络合物结构稳定。",
+   "error": null
+  },
+  {
+   "task": "sci_terms",
+   "mode": "fast",
+   "ttft_ms": 122.3,
+   "total_ms": 1493.3,
+   "chars": 87,
+   "chars_per_s": 58.3,
+   "reply": "配位数是指中心离子（或原子）直接与配体结合形成的化学键数目，而螯合效应是某些多齿配体与中心离子结合后，比单齿配体结合更稳定的现象，这是因为螯合体形成了环状结构，增强了稳定性。",
+   "error": null
+  },
+  {
+   "task": "deep_chem",
+   "mode": "deep",
+   "ttft_ms": 28119.6,
+   "total_ms": 42844.2,
+   "chars": 1083,
+   "chars_per_s": 25.3,
+   "reply": "推导 Michaelis-Menten 方程的稳态近似，核心思路是抓住酶和底物动态结合的平衡关系。我们可以分这几步来推导：\n\n**1. 写出反应机理与速率方程**\n酶促反应的过程是：游离酶（E）和底物（S）结合成复合物（ES），复合物再分解成酶和产物。\n反应式：E + S ⇌ ES → E + P\n反应速率 \\( v \\) 等于复合物分解的速率，即：\n\\( v = k_{cat} [ES] \\)\n（其中 \\( k_{cat} \\) 是催化常数，\\( [ES] \\) 是复合物浓度）\n\n**2. 应用稳态近似**\n在反应进行中，复合物 ES 的浓度会随时间变化，但在稳态下，我们可以假设 ES 的浓度基本不变（即 \\( d[ES]/dt = 0 \\)）。\n根据质量作用定律，ES 的生成速率（正反应）和消耗速率（逆反应）相等：\n\\( k_1 [E] [S] = k_{-1} [ES] + k_{c",
+   "error": null
+  },
+  {
+   "task": "history_ish",
+   "mode": "fast",
+   "ttft_ms": 127.9,
+   "total_ms": 414.8,
+   "chars": 22,
+   "chars_per_s": 53.0,
+   "reply": "没有，我没有记录到你说过关于络合滴定的事情。",
+   "error": null
+  }
+ ]
+}

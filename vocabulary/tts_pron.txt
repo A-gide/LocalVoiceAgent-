@@ -1,0 +1,64 @@
+# word | arpabet-phones (space separated) | stress index (0-based, -1 = none)
+# tone encoding: consonant -> 7, unstressed vowel -> 9, stressed vowel -> 10
+edta|iy d iy t iy ey|0
+favorskii|f ae v ao r s k iy|1
+baeyer|b ay er|1
+villiger|v ih l ih g er|1
+civita|ch iy v iy t ah|3
+minkowski|m ih n k ao f s k iy|1
+jak|jh ae k|1
+stat|s t ae t|2
+gpcr|jh iy p iy s iy aa r|6
+lumo|l uw m ow|1
+homo|hh ow m ow|1
+hammett|hh ae m ih t|1
+menten|m eh n t ah n|1
+jahn|jh ae n|1
+teller|t eh l er|1
+mapk|m ae p k ey|1
+pi3k|p iy ay th r iy k ey|1
+jak-stat|jh ae k s t ae t|3
+sn2|eh s eh n t uw|2
+sn1|eh s eh n w ah n|2
+pka|p iy k ey ey|1
+ph|p iy ey ch|2
+dna|d iy eh n ey|2
+rna|aa r eh n ey|2
+mrna|eh m aa r eh n ey|3
+atp|ey t iy p iy|0
+nadh|eh n ey d iy ey ch|2
+nadph|eh n ey d iy p iy ey ch|2
+crispr|k r ih s p er|2
+cas9|k ae s n ay n|3
+pcr|p iy s iy aa r|3
+qpcr|k y uw p iy s iy aa r|5
+hplc|ey ch p iy eh l s iy|0
+nmr|eh n eh m aa r|2
+uv|uw v iy|0
+ir|ay aa r|0
+grotrian|g r ow t r iy ah n|1
+brillouin|b r iy l uw ae n|1
+bloch|b l aa k|2
+hermite|hh er m iy t|1
+dirac|d iy r ae k|1
+schrodinger|sh r ow d ih ng er|1
+heisenberg|hh ay z ih n b er g|0
+boltzmann|b ow l ts m ah n|1
+nernst|n er n s t|0
+arrhenius|ah r iy n iy ah s|1
+grignard|g r iy n y aa r|1
+wittig|v ih t ih g|0
+kekule|k eh k uw l ey|1
+huckel|hh uw k ah l|0
+mendeleev|m eh n d ah l ey iy v|1
+zeeman|z iy m ah n|0
+stark|s t aa r k|2
+compton|k aa m p t ah n|0
+bragg|b r ae g|2
+debye|d ah b ay|2
+langmuir|l ae ng m y uw ah r|0
+freundlich|f r oy n d l ih k|0
+henderson|hh eh n d er s ah n|1
+hasselbalch|hh ae s ah l b aa l k|1
+lineweaver|l ay n w iy v er|0
+burk|b er k|0

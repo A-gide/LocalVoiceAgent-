@@ -1,0 +1,57 @@
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Rust build artifacts
+**/target/
+**/*.rs.bk
+
+# Python cache & compiled bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+pytest-cache-files-*/
+.coverage
+htmlcov/
+
+# Node modules & npm
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Runtime logs, data, and cache
+logs/
+*.log
+screenpipe-data/
+data/
+recordings/
+backups/
+tmp/
+private/
+cache/
+.lva_write_probe_*
+
+# Large binaries, models, and executables
+models/
+tools/
+*.gguf
+*.exe
+*.dll
+*.o
+*.obj
+*.pdb
+*.lib
+*.a
+!apps/desktop-shell/src-tauri/WebView2Loader.dll

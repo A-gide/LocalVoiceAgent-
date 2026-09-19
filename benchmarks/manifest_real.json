@@ -1,0 +1,486 @@
+{
+ "name": "real",
+ "source": "AISHELL-1",
+ "items": [
+  {
+   "id": "BAC009S0002W0122",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0122.wav",
+   "ref": "而对楼市成交抑制作用最大的限购",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0128",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0128.wav",
+   "ref": "四十六个限购城市当中",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0134",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0134.wav",
+   "ref": "为改善居住条件再次申请贷款购买普通商品住房",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0140",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0140.wav",
+   "ref": "通过财政补贴手段鼓励购房的地区也在不断增加",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0146",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0146.wav",
+   "ref": "有业内人士当时就指出",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0152",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0152.wav",
+   "ref": "强化地方调控主体责任",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0158",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0158.wav",
+   "ref": "市场发挥经济规律做好市场的事情",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0164",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0164.wav",
+   "ref": "以填补国内市场下滑带来的损失",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0170",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0170.wav",
+   "ref": "正式进军澳大利亚市场",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0176",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0176.wav",
+   "ref": "也进一步支持了房企到海外的投资",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0182",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0182.wav",
+   "ref": "中国内地的千万富豪中",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0188",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0188.wav",
+   "ref": "二零一一年十月一日",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0195",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0195.wav",
+   "ref": "信号系统是一个争竞争性领域和竞争性的产品",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0201",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0201.wav",
+   "ref": "但在特定的过程中间",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0207",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0207.wav",
+   "ref": "这样能够相对保障产品的质量",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0213",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0213.wav",
+   "ref": "政企兴分痼疾难消产业垄断有待破除",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0219",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0219.wav",
+   "ref": "著名经济学家修泽对经济参考记者表示",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0225",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0225.wav",
+   "ref": "垄断最大的危害就是会让竞争机制失效",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0231",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0231.wav",
+   "ref": "市场配置的功能就会失效",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0237",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0237.wav",
+   "ref": "但是有些行业民营企业还是很难进入",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0243",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0243.wav",
+   "ref": "让民营企业让市场竞争企业介入",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0249",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0249.wav",
+   "ref": "实现省级政府全面公开三公经费",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0258",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0258.wav",
+   "ref": "将汇聚近一百位行业高管",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0265",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0265.wav",
+   "ref": "中美消费科技市场的展望",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0271",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0271.wav",
+   "ref": "总经济师高级研究总监",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0277",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0277.wav",
+   "ref": "科技在电影电视和数字制作领域的影响力",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0283",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0283.wav",
+   "ref": "嘉里大酒店三楼浦东宴会厅三",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0289",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0289.wav",
+   "ref": "亚太高科技与电子产业主管",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0295",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0295.wav",
+   "ref": "嘉里大酒店三楼浦东宴会厅五",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0301",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0301.wav",
+   "ref": "从智能手表到带嵌入式电子的健身手镯珠宝和衣服",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0307",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0307.wav",
+   "ref": "昨日当有人上到机器人大世界二楼的时候",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0313",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0313.wav",
+   "ref": "机器人就会来到顾客的座位前",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0319",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0319.wav",
+   "ref": "看点三它们是国内第一代消防机器人",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0325",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0325.wav",
+   "ref": "看点四它琴棋书画样样精",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0331",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0331.wav",
+   "ref": "类似的五子棋机器人",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0337",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0337.wav",
+   "ref": "通过无线蓝牙传到电脑上",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0343",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0343.wav",
+   "ref": "杭州奥体中心仅与西湖区一江之隔",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0349",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0349.wav",
+   "ref": "虽然杭州将为亚运会投入多少还没有官方声音流出",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0355",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0355.wav",
+   "ref": "预计杭州举办亚运会的投入将只多不少",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0361",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0361.wav",
+   "ref": "这一系列工程和项目的开展",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0367",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0367.wav",
+   "ref": "这届亚运会来到阿里巴巴总部",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0373",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0373.wav",
+   "ref": "阿里巴巴集团宣布成立阿里体育集团",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0380",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0380.wav",
+   "ref": "帮助用户将后端交易体系云计算大数据等基础设施",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0387",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0387.wav",
+   "ref": "两大首尾呼应的盛会都有其特殊意义",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0393",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0393.wav",
+   "ref": "也是体育迷关心的问题",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0401",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0401.wav",
+   "ref": "但中国民间声音虽大",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0407",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0407.wav",
+   "ref": "这条领带的另一端变成了导火索",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0414",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0414.wav",
+   "ref": "关咏荷自曝曾打算带女儿同行女儿这么大了",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0420",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0420.wav",
+   "ref": "但却被这次路途中加油站的厕所吓到",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0426",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0426.wav",
+   "ref": "据台湾媒体报道",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0432",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0432.wav",
+   "ref": "一辆无牌照的二轮摩托车与一名五岁小孩发生碰撞",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0438",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0438.wav",
+   "ref": "警方在事发现场进行调查取证照片来自网络",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0444",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0444.wav",
+   "ref": "孩子患白血病三年多来",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0450",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0450.wav",
+   "ref": "男童坠下时先砸到了这辆车",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0456",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0456.wav",
+   "ref": "妈妈带着鹏鹏前往顺义区首儿李娇儿童医院口腔科看病",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0462",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0462.wav",
+   "ref": "小叮当的父母亲友",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0468",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0468.wav",
+   "ref": "我宁可把孩子留在身边照顾",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0474",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0474.wav",
+   "ref": "五岁男童每天只喝可乐不喝水十四颗牙齿齐根烂掉",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0480",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0480.wav",
+   "ref": "晚上喝了牛奶不刷牙",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  },
+  {
+   "id": "BAC009S0002W0486",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\_work\\aishell\\train\\S0002\\BAC009S0002W0486.wav",
+   "ref": "新乡小冀镇五岁男孩王明涵在家门口神秘失踪",
+   "domain": "real",
+   "variant": "human",
+   "terms": []
+  }
+ ]
+}

@@ -1,0 +1,40 @@
+{
+  "_comment": "高置信同音/近音错词映射。仅用于 corrected transcript；原始 transcript 永不改写。domain 为 null 表示通用；否则仅在指定领域上下文命中。",
+  "rules": [
+    { "from": "洛河", "to": "络合", "domain": "chemistry", "confidence": 0.9, "note": "luohe -> luohe" },
+    { "from": "落合", "to": "络合", "domain": "chemistry", "confidence": 0.85 },
+    { "from": "络河", "to": "络合", "domain": "chemistry", "confidence": 0.9 },
+    { "from": "骜合", "to": "螯合", "domain": "chemistry", "confidence": 0.8 },
+    { "from": "敖合", "to": "螯合", "domain": "chemistry", "confidence": 0.8 },
+    { "from": "佩体", "to": "配体", "domain": "chemistry", "confidence": 0.85 },
+    { "from": "陪体", "to": "配体", "domain": "chemistry", "confidence": 0.8 },
+    { "from": "佩位", "to": "配位", "domain": "chemistry", "confidence": 0.85 },
+    { "from": "陪位", "to": "配位", "domain": "chemistry", "confidence": 0.8 },
+    { "from": "配位数目", "to": "配位数", "domain": "chemistry", "confidence": 0.7 },
+    { "from": "晶常分裂", "to": "晶场分裂", "domain": "chemistry", "confidence": 0.8 },
+    { "from": "京场分裂", "to": "晶场分裂", "domain": "chemistry", "confidence": 0.75 },
+    { "from": "霍姆", "to": "HOMO", "domain": "chemistry", "confidence": 0.6 },
+    { "from": "鹿墨", "to": "LUMO", "domain": "chemistry", "confidence": 0.6 },
+    { "from": "哈米特", "to": "Hammett", "domain": "chemistry", "confidence": 0.85 },
+    { "from": "米氏动力学", "to": "Michaelis-Menten动力学", "domain": "chemistry", "confidence": 0.7 },
+
+    { "from": "勒维奇维塔", "to": "Levi-Civita", "domain": "physics", "confidence": 0.9 },
+    { "from": "列维奇维塔", "to": "Levi-Civita", "domain": "physics", "confidence": 0.9 },
+    { "from": "闵可夫斯基", "to": "Minkowski", "domain": "physics", "confidence": 0.95 },
+    { "from": "闵科夫斯基", "to": "Minkowski", "domain": "physics", "confidence": 0.9 },
+    { "from": "厄米算符", "to": "厄米算符", "domain": "physics", "confidence": 1.0 },
+    { "from": "二米算符", "to": "厄米算符", "domain": "physics", "confidence": 0.75 },
+    { "from": "哈密顿量", "to": "哈密顿量", "domain": "physics", "confidence": 1.0 },
+    { "from": "哈密度量", "to": "哈密顿量", "domain": "physics", "confidence": 0.7 },
+    { "from": "布里渊区", "to": "布里渊区", "domain": "physics", "confidence": 1.0 },
+    { "from": "布里源区", "to": "布里渊区", "domain": "physics", "confidence": 0.75 },
+
+    { "from": "磷酸化", "to": "磷酸化", "domain": "biology", "confidence": 1.0 },
+    { "from": "磷化", "to": "磷酸化", "domain": "biology", "confidence": 0.6 },
+    { "from": "泛素化", "to": "泛素化", "domain": "biology", "confidence": 1.0 },
+    { "from": "泛素华", "to": "泛素化", "domain": "biology", "confidence": 0.7 },
+    { "from": "糖异生", "to": "糖异生", "domain": "biology", "confidence": 1.0 },
+    { "from": "糖医生", "to": "糖异生", "domain": "biology", "confidence": 0.7 },
+    { "from": "鸡脖", "to": "GPCR", "domain": "biology", "confidence": 0.5 }
+  ]
+}

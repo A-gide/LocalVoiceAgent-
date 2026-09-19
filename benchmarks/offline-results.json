@@ -1,0 +1,70 @@
+{
+ "results": [
+  {
+   "name": "no external URL in code",
+   "status": "PASS",
+   "detail": "no hard-coded external host; templates resolve from loopback constants"
+  },
+  {
+   "name": "loopback constants",
+   "status": "PASS",
+   "detail": "SERVICE_HOST=['127.0.0.1'] LLM_BASE_URL=['http://127.0.0.1:1234/v1']"
+  },
+  {
+   "name": "no cloud provider referenced",
+   "status": "PASS",
+   "detail": "none found"
+  },
+  {
+   "name": "UI assets are local",
+   "status": "PASS",
+   "detail": "no CDN references"
+  },
+  {
+   "name": "Live2D assets on disk",
+   "status": "PASS",
+   "detail": "runtime + haru model vendored locally"
+  },
+  {
+   "name": "LLM reachable (no internet)",
+   "status": "PASS",
+   "detail": "models=['local-live-llm']"
+  },
+  {
+   "name": "terminology corrector",
+   "status": "PASS",
+   "detail": "铜离子可以与EDTA发生络合。 -> 铜离子可以与EDTA发生络合。"
+  },
+  {
+   "name": "ASR on CPU",
+   "status": "PASS",
+   "detail": "sensevoice: 你好，我想测试一下本地语音识别系统。"
+  },
+  {
+   "name": "TTS on CPU",
+   "status": "PASS",
+   "detail": "melotts: 2.75s, ttfa 124ms"
+  },
+  {
+   "name": "memory search",
+   "status": "PASS",
+   "detail": "1 hit for OFFLINE-4242"
+  },
+  {
+   "name": "full LLM turn",
+   "status": "PASS",
+   "detail": "59 chars in 2.4s: 络合是指一种金属离子（络合中心）与一种或多个配体（络合剂）通过配位键结合，形成具有特定空间构型和"
+  },
+  {
+   "name": "speech-safe text cleanup",
+   "status": "PASS",
+   "detail": "'标题，重点 公式 以及 1 生成 2'"
+  },
+  {
+   "name": "live external sockets",
+   "status": "PASS",
+   "detail": "none from 4 project process(es)"
+  }
+ ],
+ "ts": 1789609998.2896895
+}

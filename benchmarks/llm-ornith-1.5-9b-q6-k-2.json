@@ -1,0 +1,76 @@
+{
+ "label": "ornith-1.5-9b-q6-k-2",
+ "served_model": "local-live-llm",
+ "endpoint": "http://127.0.0.1:1234/v1",
+ "vram_used_mb": {
+  "before": 7580.0,
+  "after": 7704.0
+ },
+ "fast_ttft_ms": {
+  "median": 249.2,
+  "min": 237.5,
+  "max": 264.2
+ },
+ "rows": [
+  {
+   "task": "chat",
+   "mode": "fast",
+   "ttft_ms": 238.8,
+   "total_ms": 1404.4,
+   "chars": 34,
+   "chars_per_s": 24.2,
+   "reply": "你好！我是你的本地语音助手，能听懂你的话、帮你办事，有啥需要尽管说～",
+   "error": null
+  },
+  {
+   "task": "short_cmd",
+   "mode": "fast",
+   "ttft_ms": 237.5,
+   "total_ms": 3109.0,
+   "chars": 97,
+   "chars_per_s": 31.2,
+   "reply": "\"我需要整理实验数据\"改成更正式的说法可以是：\n\n\"我需要对实验数据进行整理。\"\n\n或者更书面一点：\n\n\"我需对实验数据加以整理。\"\n\n如果是在正式报告里，可以用：\n\n\"实验数据有待整理分析。\"",
+   "error": null
+  },
+  {
+   "task": "simple_chem",
+   "mode": "fast",
+   "ttft_ms": 264.2,
+   "total_ms": 2362.0,
+   "chars": 61,
+   "chars_per_s": 25.8,
+   "reply": "因为EDTA有六个配位原子（两个氮、四个氧），能把铜离子牢牢\"锁\"住，形成五元环结构的螯合物，这种多齿配位让结合特别牢固。",
+   "error": null
+  },
+  {
+   "task": "sci_terms",
+   "mode": "fast",
+   "ttft_ms": 261.7,
+   "total_ms": 2669.2,
+   "chars": 67,
+   "chars_per_s": 25.1,
+   "reply": "配位数就是中心原子周围直接结合的配位原子个数，而螯合效应就是多齿配体像螃蟹钳子一样一把抱住中心原子，形成的环状结构更稳定、反应更自发。",
+   "error": null
+  },
+  {
+   "task": "deep_chem",
+   "mode": "deep",
+   "ttft_ms": 44132.5,
+   "total_ms": 66782.4,
+   "chars": 897,
+   "chars_per_s": 13.4,
+   "reply": "# Michaelis-Menten 方程稳态近似推导\n\n## 反应机制\n\n酶促反应分两步：\n\nE + S ⇌(k₁)(k₋₁) ES →(k₂) E + P\n\n- k₁：结合正向速率\n- k₋₁：解离逆向速率\n- k₂：催化生成产物速率\n\n## 逐步推导\n\n**第1步：写出 [ES] 的变化速率**\n\n$$\\frac{d[ES]}{dt} = k_1[E][S] - k_{-1}[ES] - k_2[ES]$$\n\n**第2步：稳态近似**\n\n假设中间产物 ES 浓度基本不变，令：\n\n$$\\frac{d[ES]}{dt} = 0$$\n\n即：\n\n$$k_1[E][S] = (k_{-1} + k_2)[ES]$$\n\n**第3步：酶总量守恒**\n\n$$[E]_0 = [E] + [ES] \\Rightarrow [E] = [E]_0 - [ES]$$\n\n**第4步：代入求解 [ES]**\n\n",
+   "error": null
+  },
+  {
+   "task": "history_ish",
+   "mode": "fast",
+   "ttft_ms": 249.2,
+   "total_ms": 1592.8,
+   "chars": 70,
+   "chars_per_s": 43.9,
+   "reply": "没有记录哦，我这边查不到你之前说过关于络合滴定的内容。😊\n\n你要是刚才聊过，可能是换了对话窗口，或者是我这边没存下来。要不要重新跟我说一下？",
+   "error": null
+  }
+ ]
+}

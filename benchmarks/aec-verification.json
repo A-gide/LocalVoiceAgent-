@@ -1,0 +1,66 @@
+{
+ "self_hearing": [
+  {
+   "delay_ms": 60,
+   "echo_gain": 0.3,
+   "erle_dB": 12.6,
+   "raw_segments": 1,
+   "aec_segments": 1,
+   "raw_vad_fires": true,
+   "aec_vad_fires": true,
+   "raw_heard_itself": false,
+   "aec_heard_itself": false,
+   "raw_asr": "就可以与EDT发生落合。",
+   "aec_asr": "语音地听的发放。"
+  },
+  {
+   "delay_ms": 60,
+   "echo_gain": 0.6,
+   "erle_dB": 12.5,
+   "raw_segments": 1,
+   "aec_segments": 1,
+   "raw_vad_fires": true,
+   "aec_vad_fires": true,
+   "raw_heard_itself": false,
+   "aec_heard_itself": false,
+   "raw_asr": "就可以与EDT发生落合。",
+   "aec_asr": "语地T的发生。"
+  },
+  {
+   "delay_ms": 100,
+   "echo_gain": 0.3,
+   "erle_dB": 12.8,
+   "raw_segments": 1,
+   "aec_segments": 0,
+   "raw_vad_fires": true,
+   "aec_vad_fires": false,
+   "raw_heard_itself": false,
+   "aec_heard_itself": false,
+   "raw_asr": "就可以与EDT发生落合。",
+   "aec_asr": "与DT的方向。"
+  },
+  {
+   "delay_ms": 40,
+   "echo_gain": 0.6,
+   "erle_dB": 12.0,
+   "raw_segments": 1,
+   "aec_segments": 1,
+   "raw_vad_fires": true,
+   "aec_vad_fires": true,
+   "raw_heard_itself": false,
+   "aec_heard_itself": false,
+   "raw_asr": "就可以与EDT发生落合。",
+   "aec_asr": "你语音DT的方放。"
+  }
+ ],
+ "talkover": {
+  "user_alone_asr": "这里需要考虑配体的配位数。",
+  "aec_asr": "这里需要考虑配体的配位数。",
+  "user_retained_dB": -0.1,
+  "user_still_audible": true,
+  "assistant_absent": true,
+  "pass": true
+ },
+ "delay_ms_default": 60,
+ "gate_note": "the assistant's echo alone measures 0.0063 rms against an interruption floor of 0.0150; a gate that ignores the echo therefore also ignores user speech quieter than the echo, which is why barge-in with speakers needs cancellation and not a threshold"
+}

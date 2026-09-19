@@ -1,0 +1,78 @@
+{
+  "platform": "Intel Core i9-13980HX / RTX 4060 Laptop 8GB / 32GB RAM / Windows 11",
+  "methodology": "Independent micro-benchmarks on real models and real speech waveforms + live WebSocket measurements",
+  "benchmarks": {
+    "ASR_Fast_SenseVoice_CPU_int8": {
+      "test_input": "Real audio chem_01_melotts.wav (2.35s, 铜离子可以与EDTA发生络合。)",
+      "samples_ms": [
+        66.1,
+        68.0,
+        68.8,
+        73.0,
+        79.2
+      ],
+      "median_ms": 68.8,
+      "rtf": 0.0293,
+      "budget_ms": "< 300ms",
+      "evaluation": "68.8ms < 300ms (PASS)",
+      "status": "PASS"
+    },
+    "LLM_TTFT_Spark_X2.5_FAST_mode": {
+      "test_input": "Direct streaming query against http://127.0.0.1:1234/v1 (enable_thinking=false)",
+      "samples_ms": [
+        119.2,
+        92.4,
+        105.8
+      ],
+      "median_ms": 105.8,
+      "budget_ms": "< 250ms",
+      "evaluation": "105.8ms < 250ms (PASS)",
+      "status": "PASS"
+    },
+    "TTS_First_Chunk_MeloTTS_CPU": {
+      "test_input": "First spoken clause (5 chars: 铜离子可以, ~1.0s audio)",
+      "samples_ms": [
+        182.2,
+        184.7,
+        204.1,
+        215.9
+      ],
+      "median_ms": 184.7,
+      "budget_ms": "< 200ms",
+      "evaluation": "184.7ms < 200ms (PASS)",
+      "status": "PASS"
+    },
+    "TTS_Full_Sentence_MeloTTS_CPU": {
+      "test_input": "Complete sentence (16 chars: 铜离子可以和EDTA发生络合反应。, 2.75s audio)",
+      "samples_ms": [
+        545.6,
+        553.5,
+        607.2,
+        622.9,
+        633.0
+      ],
+      "median_ms": 607.2,
+      "budget_ms": "< 800ms",
+      "evaluation": "607.2ms < 800ms (PASS)",
+      "status": "PASS"
+    },
+    "E2E_Conversational_TTFA_WebSocket": {
+      "test_input": "Full live turn over ws://127.0.0.1:12393/client-ws (Stop to First Audio)",
+      "measured_range_s": "1.09s ~ 1.37s (conversational) / 2.12s ~ 2.37s (memory query)",
+      "budget_s": "1.1s ~ 1.5s",
+      "evaluation": "Conversational TTFA is within real-time budget (PASS)",
+      "status": "PASS"
+    },
+    "Barge_in_Interruption_Latency": {
+      "test_input": "Client sends interrupt-signal during audio playback; measures halt acknowledge",
+      "samples_ms": [
+        2.51,
+        7.77
+      ],
+      "median_ms": 5.14,
+      "budget_ms": "< 800ms",
+      "evaluation": "5.14ms << 800ms (PASS)",
+      "status": "PASS"
+    }
+  }
+}

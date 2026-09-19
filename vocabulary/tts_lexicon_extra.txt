@@ -1,0 +1,41 @@
+# 自定义音素词典（sherpa-onnx VITS lexicon 格式: word phone1..phoneN tone1..toneN）
+# 用于让本地 TTS 正确读出科学术语。缺少这些条目时 MeloTTS 会把词读成乱码。
+# 中文声调 1-5；英文使用 7(非重读辅音) / 8,9(非重读元音) / 10(重读元音)。
+edta iy d iy t iy ey 9 7 9 7 9 7
+favorskii f ae v ao r s k iy 7 10 7 9 7 7 7 9
+baeyer b ay er 7 10 9
+villiger v ih l ih g er 7 10 7 9 7 9
+civita ch iy v iy t ah 7 9 7 10 7 9
+minkowski m ih n k ao f s k iy 7 10 7 7 9 7 7 9
+jak jh ae k 7 10 7
+stat s t ae t 7 7 10 7
+gpcr jh iy p iy s iy aa r 7 9 7 9 7 9 9 7
+lumo l uw m ow 7 10 7 9
+homo hh ow m ow 7 10 7 9
+hammett hh ae m ih t 7 9 7 8 7
+menten m eh n t ah n 7 10 7 7 9 7
+jahn jh ae n 7 9 7
+teller t eh l er 7 9 7 8
+mapk m ae p k ey 7 10 7 9
+pi3k p iy ay th r iy k ey 7 9 9 7 9 9
+jak-stat jh ae k s t ae t 7 9 7 7 9 7
+gpcrs jh iy p iy s iy aa r z 7 9 7 9 7 9 9 7
+sn2 eh s eh n t uw 9 7 9 7 9
+sn1 eh s eh n w ah n 9 7 9 7 9
+pka p iy k ey ey 7 9 9 9
+ph p iy ey ch 7 9 9 7
+dna d iy eh n ey 7 9 9 9
+rna aa r eh n ey 9 7 9 9
+mrna eh m aa r eh n ey 9 9 7 9 9
+atp ey t iy p iy 9 7 9 7 9
+nadph eh n ey d iy p iy ey ch 9 7 9 7 9 7 9 7
+crispr k r ih s p er 7 7 10 7 9
+cas9 k ae s n ay n 7 10 7 7 9
+pcr p iy s iy aa r 7 9 7 9 7
+qpcr k y uw p iy s iy aa r 7 9 7 9 7 9 7
+western w eh s t er n 7 10 7 7 9 7
+blot b l aa t 7 7 10 7
+hplc ey ch p iy eh l s iy 9 7 9 9 7 9
+nmr eh n eh m aa r 9 9 7 9 7
+uv uw v iy 9 7 9 7
+ir ay aa r 9 9 7

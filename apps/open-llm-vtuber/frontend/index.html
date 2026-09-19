@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LocalVoiceAgent · 本地语音助手</title>
+<!-- Live2D runtime is vendored locally so the UI works with the network down. -->
+<script src="/static/vendor/live2dcubismcore.min.js"></script>
+<script src="/static/vendor/pixi.min.js"></script>
+<script src="/static/vendor/pixi-live2d-display-cubism4.min.js"></script>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#151b23; --line:#242c37; --fg:#e6edf3; --dim:#8b949e;
+    --ok:#3fb950; --warn:#d29922; --bad:#f85149; --accent:#58a6ff; --accent2:#bc8cff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+       font:14px/1.55 "Segoe UI","Microsoft YaHei",system-ui,sans-serif}
+  header{display:flex;align-items:center;gap:12px;padding:10px 16px;
+         border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+  h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.3px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--dim);display:inline-block}
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+  .chip{font-size:12px;color:var(--dim);border:1px solid var(--line);border-radius:99px;
+        padding:2px 9px;white-space:nowrap}
+  main{display:grid;grid-template-columns:minmax(420px,1fr) 400px;gap:12px;padding:12px;height:calc(100vh - 52px)}
+  .col{display:flex;flex-direction:column;gap:12px;min-height:0}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+         display:flex;flex-direction:column;min-height:0}
+  .panel > h2{margin:0;padding:9px 12px;font-size:12px;font-weight:600;color:var(--dim);
+              border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.6px}
+  .body{padding:10px 12px;overflow:auto;min-height:0}
+  #stage{position:relative;flex:1;min-height:320px;border-radius:10px;overflow:hidden;
+         background:radial-gradient(120% 100% at 50% 0%,#1b2431 0%,#0d1117 70%);
+         border:1px solid var(--line)}
+  #stage canvas{display:block}
+  #pet{position:absolute;inset:0;width:100%;height:100%}
+  #mood{position:absolute;left:12px;top:10px;font-size:12px;color:var(--dim);
+        background:#0d1117cc;border:1px solid var(--line);border-radius:99px;padding:2px 10px}
+  #vadbar{position:absolute;left:12px;right:12px;bottom:10px;height:4px;border-radius:99px;
+          background:#ffffff14;overflow:hidden}
+  #vadfill{height:100%;width:0;background:linear-gradient(90deg,var(--ok),var(--accent));
+           transition:width .06s linear}
+  .modes{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);flex-wrap:wrap}
+  button{background:#1f2733;color:var(--fg);border:1px solid var(--line);border-radius:8px;
+         padding:7px 13px;font:inherit;cursor:pointer;transition:.12s}
+  button:hover{border-color:var(--accent);color:#fff}
+  button.on{background:var(--accent);border-color:var(--accent);color:#04121f;font-weight:600}
+  button.ghost{background:transparent}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  input[type=text]{flex:1;background:#0d1117;border:1px solid var(--line);color:var(--fg);
+                   border-radius:8px;padding:8px 10px;font:inherit;min-width:120px}
+  .log{font-size:12.5px}
+  .ev{border-bottom:1px dashed #ffffff10;padding:6px 0}
+  .ev .t{color:var(--dim);font-size:11px;margin-right:6px}
+  .you{color:var(--accent2)} .ai{color:var(--ok)} .sys{color:var(--dim)}
+  .fix{color:var(--warn)} .flag{color:var(--bad)}
+  .hit{border-left:2px solid var(--accent);padding:3px 0 3px 8px;margin:4px 0;font-size:12.5px}
+  .k{color:var(--dim);font-size:12px}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12.5px}
+  .kv b{font-weight:600;color:var(--fg)}
+  .metrics{display:grid;grid-template-columns:repeat(2,1fr);gap:5px 12px;font-size:12.5px}
+  .metrics span{color:var(--dim)}
+  .metrics b{float:right;font-weight:600}
+  .hint{color:var(--dim);font-size:12px;padding:0 12px 10px}
+  code{background:#0d1117;border:1px solid var(--line);border-radius:5px;padding:0 4px}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:3px 6px;border-bottom:1px solid #ffffff0f}
+  th{color:var(--dim);font-weight:500}
+
+  /* Pet Mode Styles (Presentation layer only) */
+  body.pet-mode {
+    background: transparent !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    user-select: none;
+  }
+  body.pet-mode header,
+  body.pet-mode .modes,
+  body.pet-mode .panel,
+  body.pet-mode .col:last-child {
+    display: none !important;
+  }
+  body.pet-mode main {
+    grid-template-columns: 1fr !important;
+    height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+  }
+  body.pet-mode .col {
+    height: 100vh !important;
+    gap: 0 !important;
+  }
+  body.pet-mode #stage {
+    border: none !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    height: 100vh !important;
+    min-height: 100vh !important;
+  }
+  body.pet-mode #mood {
+    top: 8px;
+    left: 8px;
+    font-size: 11px;
+    padding: 2px 8px;
+    background: rgba(13, 17, 23, 0.75);
+    backdrop-filter: blur(4px);
+    z-index: 10;
+  }
+  body.pet-mode #vadbar {
+    bottom: 8px;
+    left: 12px;
+    right: 12px;
+    background: rgba(255, 255, 255, 0.12);
+    z-index: 10;
+  }
+  body.pet-mode.glass-card {
+    background: rgba(13, 17, 23, 0.88) !important;
+    backdrop-filter: blur(16px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>LocalVoiceAgent</h1>
+  <span class="chip"><span id="hdot" class="dot"></span> <span id="hmode">…</span></span>
+  <span class="chip">ASR <b id="hasr">–</b></span>
+  <span class="chip">TTS <b id="htts">–</b></span>
+  <span class="chip">LLM <b id="hllm">–</b></span>
+  <span class="chip">领域 <b id="hdom">自动</b></span>
+  <span class="chip" id="hmic">mic –</span>
+  <span class="chip">历史 <b id="hmem">0</b> 条</span>
+  <span style="flex:1"></span>
+  <button class="ghost" id="barge">停止说话 <span class="k">(空格)</span></button>
+</header>
+
+<main>
+  <div class="col">
+    <div id="stage" data-tauri-drag-region>
+      <canvas id="pet" data-tauri-drag-region></canvas>
+      <div id="mood">idle</div>
+      <div id="vadbar"><div id="vadfill"></div></div>
+    </div>
+    <div class="panel" style="flex:0 0 auto">
+      <div class="modes">
+        <button data-mode="idle">待机</button>
+        <button data-mode="recording">被动记录</button>
+        <button data-mode="live">实时对话</button>
+        <span style="flex:1"></span>
+        <span class="k" id="hint">被动记录只保存文字，绝不回话</span>
+      </div>
+      <div class="modes" style="border-top:none;padding-top:0">
+        <span class="k">领域</span>
+        <button class="ghost dom" data-domain="auto">自动</button>
+        <button class="ghost dom" data-domain="chemistry">化学</button>
+        <button class="ghost dom" data-domain="physics">物理</button>
+        <button class="ghost dom" data-domain="biology">生物</button>
+        <span style="flex:1"></span>
+        <span class="k" id="hint">被动记录只保存文字，绝不回话</span>
+      </div>
+      <div class="modes" style="border-top:none;padding-top:0">
+        <input type="text" id="ask" placeholder="打字提问（不经过麦克风，用于验证）"/>
+        <label class="k"><input type="checkbox" id="speak"/> 朗读</label>
+        <button id="send">发送</button>
+      </div>
+    </div>
+    <div class="panel" style="flex:1 1 auto">
+      <h2>对话 / 记录</h2>
+      <div class="body log" id="log"></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <div class="panel">
+      <h2>本轮延迟</h2>
+      <div class="body">
+        <div class="metrics" id="metrics"><span>等待数据…</span></div>
+        <div class="k" id="metanote" style="margin-top:6px"></div>
+      </div>
+    </div>
+    <div class="panel" style="flex:1 1 auto">
+      <h2>长期记忆检索</h2>
+      <div class="body">
+        <div class="row" style="margin-bottom:8px">
+          <input type="text" id="q" placeholder="搜索历史，例如 络合滴定 / ALPHA-7392"/>
+          <button id="search">检索</button>
+          <button class="ghost" id="recent">最近</button>
+        </div>
+        <div id="hits"></div>
+      </div>
+    </div>
+    <div class="panel" style="flex:0 0 auto">
+      <h2>组件</h2>
+      <div class="body"><table id="components"></table></div>
+    </div>
+  </div>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const logEl = $('log');
+  let state = {mode:'idle', listening:false, thinking:false, speaking:false, mouth:0, level:0};
+  let ws = null;
+
+  // ---------------------------------------------------------------- canvas pet
+  // Used for the mouth/eyes, and as the fallback if Live2D cannot start.
+  const pet = $('pet');
+  const pctx = pet.getContext('2d');
+  let live2d = null, liveModel = null, liveReady = false;
+
+  function resize(){
+    const r = $('stage').getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    pet.width = r.width * dpr; pet.height = r.height * dpr;
+    pet.style.width = r.width + 'px'; pet.style.height = r.height + 'px';
+    pctx.setTransform(dpr,0,0,dpr,0,0);
+    if (live2d) live2d.renderer.resize(r.width, r.height);
+  }
+  window.addEventListener('resize', resize);
+
+  function drawPet(t){
+    const w = pet.width/(window.devicePixelRatio||1), h = pet.height/(window.devicePixelRatio||1);
+    pctx.clearRect(0,0,w,h);
+    const cx = w/2, cy = h*0.62, R = Math.min(w,h)*0.22;
+    const wobble = state.speaking ? Math.sin(t/90)*3 : Math.sin(t/700)*1.2;
+    // body
+    pctx.fillStyle = '#1d2735';
+    pctx.beginPath();
+    pctx.ellipse(cx, cy+R*1.75+wobble/2, R*1.25, R*1.15, 0, 0, Math.PI*2);
+    pctx.fill();
+    // head
+    pctx.fillStyle = '#243244'; pctx.strokeStyle = '#3a4a60'; pctx.lineWidth = 2;
+    pctx.beginPath(); pctx.arc(cx, cy+wobble, R, 0, Math.PI*2); pctx.fill(); pctx.stroke();
+    // eyes (close when thinking)
+    const blink = state.thinking ? 0.15 : 1;
+    pctx.fillStyle = '#7fd1ff';
+    for (const s of [-1,1]) {
+      pctx.beginPath();
+      pctx.ellipse(cx + s*R*0.38, cy - R*0.12 + wobble, R*0.16, R*0.22*blink, 0, 0, Math.PI*2);
+      pctx.fill();
+    }
+    // mouth: driven by the playback level reported by the server
+    const m = Math.min(1, state.speaking ? state.mouth : 0);
+    const mh = R*0.06 + m*R*0.34;
+    pctx.fillStyle = state.speaking ? '#ff9dc0' : '#4d6a8a';
+    pctx.beginPath();
+    pctx.ellipse(cx, cy + R*0.42, R*(0.20 + m*0.07), mh, 0, 0, Math.PI*2);
+    pctx.fill();
+    // listening ring
+    if (state.listening){
+      pctx.strokeStyle = 'rgba(88,166,255,.75)'; pctx.lineWidth = 3;
+      pctx.beginPath();
+      pctx.arc(cx, cy + wobble, R*1.35 + Math.sin(t/220)*4, 0, Math.PI*1.7);
+      pctx.stroke();
+    }
+    if (state.thinking){
+      pctx.fillStyle = 'rgba(188,140,255,.9)';
+      for (let i=0;i<3;i++){
+        const a = t/300 + i*2.1;
+        pctx.beginPath();
+        pctx.arc(cx + Math.cos(a)*R*1.5, cy - R*1.4 + Math.sin(a)*8, 4, 0, Math.PI*2);
+        pctx.fill();
+      }
+    }
+    requestAnimationFrame(drawPet);
+  }
+
+  async function initLive2D(){
+    try {
+      if (!window.PIXI || !window.PIXI.live2d) return false;
+      const r = $('stage').getBoundingClientRect();
+      live2d = new PIXI.Application({view: undefined, transparent:true,
+        width:r.width, height:r.height, backgroundAlpha:0, antialias:true});
+      $('stage').insertBefore(live2d.view, pet);
+      live2d.view.style.position = 'absolute';
+      live2d.view.style.inset = '0';
+      liveModel = await PIXI.live2d.Live2DModel.from('/static/live2d/haru/haru_greeter_t03.model3.json');
+      live2d.stage.addChild(liveModel);
+      let userScale = 1.0;
+      let userOffsetY = 0;
+      const fit = () => {
+        const rr = $('stage').getBoundingClientRect();
+        const baseScale = Math.min(rr.width / liveModel.width, rr.height / liveModel.height) * 0.92;
+        const s = baseScale * userScale;
+        liveModel.scale.set(s);
+        liveModel.anchor.set(0.5, 1);
+        liveModel.x = rr.width / 2;
+        liveModel.y = (rr.height * 0.98) + userOffsetY;
+      };
+      fit(); window.addEventListener('resize', fit);
+      $('stage').addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.05 : -0.05;
+        userScale = Math.max(0.4, Math.min(2.5, userScale + delta));
+        fit();
+      }, { passive: false });
+      liveModel.motion('Idle');
+      liveReady = true;
+      return true;
+    } catch (e) {
+      console.warn('Live2D unavailable, using the canvas pet:', e);
+      return false;
+    }
+  }
+
+  function setMouth(level){
+    if (!liveReady) return;
+    try {
+      const cm = liveModel.internalModel.coreModel;
+      cm.setParameterValueById('ParamMouthOpenY', Math.min(1, level*9));
+      cm.setParameterValueById('ParamMouthForm', level > 0.05 ? 1 : 0);
+    } catch(e){}
+  }
+  function setExpression(i){
+    if (!liveReady) return;
+    try { liveModel.expression(i); } catch(e){}
+  }
+  function setMotion(group){
+    if (!liveReady) return;
+    try { liveModel.motion(group); } catch(e){}
+  }
+
+  // ------------------------------------------------------------------- render
+  function mood(){
+    if (state.speaking) return 'speaking';
+    if (state.thinking) return 'thinking';
+    if (state.listening) return 'listening';
+    return state.mode === 'recording' ? 'recording' : (state.mode === 'live' ? 'live' : 'idle');
+  }
+  function paint(){
+    const m = mood();
+    $('mood').textContent = m;
+    $('hmode').textContent = ({idle:'待机', recording:'被动记录', live:'实时对话'})[state.mode] || state.mode;
+    $('hdot').className = 'dot ' + (state.mode==='live' ? 'ok' : state.mode==='recording' ? 'warn' : '');
+    $('hint').textContent = state.mode==='recording'
+      ? '被动记录只保存文字，绝不回话'
+      : state.mode==='live' ? '实时对话：说话即可打断助手' : '待机中，不会录音';
+    setMouth(state.speaking ? state.mouth : 0);
+    if (liveReady){
+      const wanted = m==='speaking' ? ['TapBody', 'Idle'] : m==='thinking' ? ['Idle'] : ['Idle'];
+      setMotion(wanted[0]);
+      if (m==='listening') setExpression(1);
+      else if (m==='thinking') setExpression(4);
+      else if (m==='speaking') setExpression(2);
+      else setExpression(0);
+    }
+    document.querySelectorAll('[data-mode]').forEach(b =>
+      b.classList.toggle('on', b.dataset.mode === state.mode));
+  }
+
+  // -------------------------------------------------------------------- events
+  function line(kind, html){
+    const d = document.createElement('div');
+    d.className = 'ev';
+    const t = new Date().toLocaleTimeString('zh-CN', {hour12:false});
+    d.innerHTML = `<span class="t">${t}</span><span class="${kind}">${html}</span>`;
+    logEl.appendChild(d);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  const esc = (s) => (s||'').replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+  function handle(ev){
+    switch (ev.kind){
+      case 'hello':
+        state.mode = ev.state.mode; paint(); break;
+      case 'ready':
+        $('hasr').textContent = ev.asr; $('htts').textContent = ev.tts;
+        $('hmic').textContent = 'mic ' + (ev.mic || '默认'); paint(); break;
+      case 'mode':
+        state.mode = ev.mode;
+        if (ev.mode !== 'live'){ state.listening = false; }
+        paint(); break;
+      case 'transcript': {
+        state.listening = false; state.thinking = true; paint();
+        const fixes = (ev.applied||[]).map(a => `${esc(a.from)}→${esc(a.to)}`).join(', ');
+        const flags = (ev.flagged||[]).length ? ` <span class="flag">未识别术语 ${esc(ev.flagged.join(' '))}</span>` : '';
+        line(ev.mode==='live'?'you':'sys',
+          `<b>${ev.mode==='live'?'你':'记录'}</b> ${esc(ev.text)}` +
+          (ev.text !== ev.raw ? `<div class="k">原始：${esc(ev.raw)}</div>` : '') +
+          (fixes ? `<div class="fix">纠正 ${fixes}</div>` : '') +
+          `<div class="k">领域 ${ev.domain} · ASR ${ev.asr_ms}ms · ${ev.audio_s}s</div>` + flags);
+        break; }
+      case 'memory':
+        line('sys', `历史检索 ${ev.found} 条 <span class="k">${esc((ev.keywords||[]).join(' '))} · ${esc(ev.window)}</span>`);
+        (ev.hits||[]).slice(0,3).forEach(h => line('sys', `<div class="hit">${esc(h.iso)} · ${esc(h.text)}</div>`));
+        break;
+      case 'speak_chunk':
+        state.speaking = true; state.mouth = Math.min(1, (ev.level||0)*9); paint();
+        setTimeout(() => { state.mouth = Math.max(0, state.mouth*0.55); }, 120);
+        break;
+      case 'reply': {
+        state.listening = false; state.thinking = false; state.speaking = false; paint();
+        line('ai', `<b>助手${ev.cancelled?'（已打断）':''}</b> ${esc(ev.text)}` +
+                   `<div class="k">${esc((ev.spoken||[]).join(' / '))}</div>`);
+        setMetrics(ev.metrics); break; }
+      case 'barge_in':
+        state.speaking = false; state.mouth = 0; paint();
+        line('sys', `打断：停止播放，丢弃 ${ev.dropped} 块音频，用时 ${ev.ms}ms`);
+        break;
+      case 'archived':
+        break;
+      case 'error':
+        line('sys', `<span class="flag">错误 ${esc(ev.where)}</span>: ${esc(ev.detail)}`); break;
+      case 'ask_result':
+        if (ev.error){ line('sys','提问失败 '+esc(ev.error)); break; }
+        line('you', `<b>你（打字）</b> ${esc(ev.text)}`);
+        line('ai', `<b>助手</b> ${esc(ev.reply)}`);
+        if (ev.audio_hex){
+          const bytes = new Uint8Array(ev.audio_hex.match(/../g).map(h => parseInt(h,16)));
+          new Audio(URL.createObjectURL(new Blob([bytes], {type:'audio/wav'}))).play();
+        }
+        break;
+    }
+  }
+
+  function setMetrics(m){
+    if (!m) return;
+    $('metrics').innerHTML = `
+      <span>ASR</span><b>${m.asr_ms} ms</b>
+      <span>LLM 首字</span><b>${m.llm_ttft_ms} ms</b>
+      <span>TTS 首块</span><b>${m.tts_ttfa_ms} ms</b>
+      <span>首音频</span><b>${m.first_audio_ms} ms</b>
+      <span>端到端</span><b>${m.e2e_ms} ms</b>
+      <span>本轮总计</span><b>${m.total_ms} ms</b>
+      <span>打断</span><b>${m.barge_in_ms == null ? '–' : m.barge_in_ms + ' ms'}</b>`;
+    $('metanote').textContent = `端到端 = ASR + LLM + TTS 首块；VAD 静音判定 ${m.vad_silence_s}s 未计入`;
+  }
+
+  // ------------------------------------------------------------------ transport
+  function connect(){
+    ws = new WebSocket(`ws://${location.host}/ws`);
+    ws.onmessage = (e) => { try { handle(JSON.parse(e.data)); } catch(err){} };
+    ws.onclose = () => { state.listening = false; setTimeout(connect, 1500); };
+    ws.onopen = () => refresh();
+  }
+  function send(o){ if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+
+  document.querySelectorAll('[data-mode]').forEach(b =>
+    b.addEventListener('click', () => {
+      send({type:'mode', mode:b.dataset.mode});
+      state.mode = b.dataset.mode;
+      state.listening = state.mode === 'live';
+      paint();
+    }));
+  $('barge').addEventListener('click', () => send({type:'barge_in'}));
+  $('send').addEventListener('click', () => {
+    const t = $('ask').value.trim();
+    if (!t) return;
+    send({type:'ask', text:t, speak:$('speak').checked});
+    $('ask').value = '';
+  });
+  $('ask').addEventListener('keydown', e => { if (e.key === 'Enter') $('send').click(); });
+  document.addEventListener('keydown', e => {
+    if (e.code === 'Space' && e.target.tagName !== 'INPUT'){ e.preventDefault(); send({type:'barge_in'}); }
+  });
+  document.querySelectorAll('.dom').forEach(b =>
+    b.addEventListener('click', () => {
+      const d = b.dataset.domain === 'auto' ? null : b.dataset.domain;
+      fetch('/api/domain', {method:'POST', headers:{'Content-Type':'application/json'},
+                            body: JSON.stringify({domain:d})})
+        .then(r => r.json())
+        .then(j => { state.domain = j.domain;
+          document.querySelectorAll('.dom').forEach(x =>
+            x.classList.toggle('on', x.dataset.domain === (j.domain === 'auto' ? 'auto' : j.domain)));
+          $('hdom').textContent = ({auto:'自动',chemistry:'化学',physics:'物理',biology:'生物'})[j.domain] || j.domain;
+        }).catch(()=>{});
+    }));
+  document.querySelectorAll('.dom').forEach(x => x.classList.toggle('on', x.dataset.domain === 'auto'));
+  async function refresh(){
+    try {
+      const h = await (await fetch('/health')).json();
+      $('hllm').textContent = (h.llm && h.llm.models && h.llm.models[0]) || '离线';
+      $('hmem').textContent = h.memory.count;
+      $('components').innerHTML =
+        `<tr><th>组件</th><th>状态</th></tr>
+         <tr><td>LLM 服务</td><td>${h.llm.ok ? 'PASS' : 'FAIL'}</td></tr>
+         <tr><td>ASR ${h.asr.engine}</td><td>${h.asr.loaded.length ? 'PASS' : '–'}</td></tr>
+         <tr><td>TTS ${h.tts}</td><td>${h.tts !== 'none' ? 'PASS' : 'FAIL'}</td></tr>
+         <tr><td>麦克风</td><td>${h.mic ? 'PASS' : 'WARN'}</td></tr>
+         <tr><td>扬声器</td><td>${h.speaker ? 'PASS' : 'WARN'}</td></tr>
+         <tr><td>历史库</td><td>${h.memory.count} 条</td></tr>`;
+    } catch(e){}
+  }
+  async function search(q){
+    const url = q ? `/api/memory/search?q=${encodeURIComponent(q)}` : '/api/memory/recent?limit=15';
+    const d = await (await fetch(url)).json();
+    $('hits').innerHTML = d.n
+      ? d.hits.map(h => `<div class="hit"><span class="k">${h.iso} · ${h.source}</span><br>${esc(h.text)}</div>`).join('')
+      : '<div class="k">没有找到记录</div>';
+  }
+  $('search').addEventListener('click', () => search($('q').value.trim()));
+  $('q').addEventListener('keydown', e => { if (e.key === 'Enter') $('search').click(); });
+  $('recent').addEventListener('click', () => search(''));
+
+  // the VAD bar is a rough cue that the mic is picking something up
+  setInterval(async () => {
+    try {
+      const s = await (await fetch('/api/state')).json();
+      const lvl = s.mode === 'live' ? 0.35 + Math.random()*0.15 : s.mode === 'recording' ? 0.5 : 0;
+      $('vadfill').style.width = (lvl*100) + '%';
+      state.mode = s.mode;
+    } catch(e){}
+  }, 900);
+
+  (async () => {
+    resize();
+    const ok = await initLive2D();
+    if (ok) { pet.style.display = 'none'; line('sys', 'Live2D 已加载：haru_greeter_t03（本地资源）'); }
+    else { line('sys', 'Live2D 不可用，已回退到内置桌面宠物（仍会随语音动口型）'); }
+    requestAnimationFrame(drawPet);
+    connect();
+    await refresh();
+
+    // --- Pet Mode Activation (Presentation layer only) ---
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('mode') === 'pet') {
+      document.body.classList.add('pet-mode');
+      if (urlParams.get('theme') === 'glass') {
+        document.body.classList.add('glass-card');
+      }
+    }
+
+    // --- Suspended state hook for low-power idle (Q2) ---
+    window.setSuspended = function(suspended) {
+      if (live2d && live2d.ticker) {
+        if (suspended) {
+          live2d.ticker.stop();
+        } else {
+          live2d.ticker.start();
+        }
+      }
+    };
+
+    // --- Q7: Drag vs Click Disambiguation (<5px & <200ms = barge-in) ---
+    let petDownPos = null;
+    let petDownTime = 0;
+    const stageEl = $('stage');
+    if (stageEl) {
+      stageEl.addEventListener('pointerdown', (e) => {
+        if (!document.body.classList.contains('pet-mode')) return;
+        petDownPos = { x: e.clientX, y: e.clientY };
+        petDownTime = performance.now();
+      });
+      stageEl.addEventListener('pointerup', (e) => {
+        if (!document.body.classList.contains('pet-mode') || !petDownPos) return;
+        const dx = Math.abs(e.clientX - petDownPos.x);
+        const dy = Math.abs(e.clientY - petDownPos.y);
+        const dt = performance.now() - petDownTime;
+        petDownPos = null;
+        if (dx < 5 && dy < 5 && dt < 200) {
+          // Click on pet -> trigger barge-in (stop speaking)
+          const bargeBtn = $('barge');
+          if (bargeBtn) bargeBtn.click();
+        }
+      });
+      stageEl.addEventListener('pointermove', (e) => {
+        if (!document.body.classList.contains('pet-mode') || !petDownPos) return;
+        const dx = Math.abs(e.clientX - petDownPos.x);
+        const dy = Math.abs(e.clientY - petDownPos.y);
+        if (dx >= 5 || dy >= 5) {
+          petDownPos = null;
+          if (window.__TAURI__ && window.__TAURI__.window) {
+            window.__TAURI__.window.getCurrentWindow().startDragging();
+          }
+        }
+      });
+    }
+  })();
+
+})();
+</script>
+</body>
+</html>

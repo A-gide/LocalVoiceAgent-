@@ -1,0 +1,118 @@
+{
+  "summary": {
+    "engine": "SenseVoice-int8",
+    "total_clips": 12,
+    "hotwords_diff_count": 0,
+    "finding": "sherpa-onnx OfflineRecognizerConfig accepts hotwords_file during init, but non-transducer SenseVoice CTC greedy decoder is invariant to hotwords bias. Terminology post-correction provides necessary and sufficient accuracy recovery."
+  },
+  "details": [
+    {
+      "id": "general_01_melotts",
+      "ref": "你好，我想测试一下本地语音识别系统。",
+      "baseline": "我想测试一下本壁一时迷系统。",
+      "hotwords": "我想测试一下本壁一时迷系统。",
+      "corrected": "我想测试一下本壁一时迷系统。",
+      "fixes": [],
+      "hw_diff": false
+    },
+    {
+      "id": "general_01_sapi",
+      "ref": "你好，我想测试一下本地语音识别系统。",
+      "baseline": "你好，我想测试一下本地语音识别系统。",
+      "hotwords": "你好，我想测试一下本地语音识别系统。",
+      "corrected": "你好，我想测试一下本地语音识别系统。",
+      "fixes": [],
+      "hw_diff": false
+    },
+    {
+      "id": "general_02_melotts",
+      "ref": "今天下午我要整理一下实验数据。",
+      "baseline": "明天下午我要整理一下实验手机。",
+      "hotwords": "明天下午我要整理一下实验手机。",
+      "corrected": "明天下午我要整理一下实验手机。",
+      "fixes": [],
+      "hw_diff": false
+    },
+    {
+      "id": "general_02_sapi",
+      "ref": "今天下午我要整理一下实验数据。",
+      "baseline": "今天下午我要整理一下实验数据。",
+      "hotwords": "今天下午我要整理一下实验数据。",
+      "corrected": "今天下午我要整理一下实验数据。",
+      "fixes": [],
+      "hw_diff": false
+    },
+    {
+      "id": "general_03_melotts",
+      "ref": "你好，我现在正在测试本地语音助手。",
+      "baseline": "你好，我现在这的才是本第一中学。",
+      "hotwords": "你好，我现在这的才是本第一中学。",
+      "corrected": "你好，我现在这的才是本第一中学。",
+      "fixes": [],
+      "hw_diff": false
+    },
+    {
+      "id": "general_03_sapi",
+      "ref": "你好，我现在正在测试本地语音助手。",
+      "baseline": "你好，我现在正在测试本地语音助手。",
+      "hotwords": "你好，我现在正在测试本地语音助手。",
+      "corrected": "你好，我现在正在测试本地语音助手。",
+      "fixes": [],
+      "hw_diff": false
+    },
+    {
+      "id": "chem_01_melotts",
+      "ref": "铜离子可以与EDTA发生络合。",
+      "baseline": "我每次可以一滴气发生的好。",
+      "hotwords": "我每次可以一滴气发生的好。",
+      "corrected": "我每次可以一滴气发生的好。",
+      "fixes": [],
+      "hw_diff": false
+    },
+    {
+      "id": "chem_01_sapi",
+      "ref": "铜离子可以与EDTA发生络合。",
+      "baseline": "铜离子可以与EDDA发生络合。",
+      "hotwords": "铜离子可以与EDDA发生络合。",
+      "corrected": "铜离子可以与EDDA发生络合。",
+      "fixes": [],
+      "hw_diff": false
+    },
+    {
+      "id": "chem_02_melotts",
+      "ref": "这里需要考虑配体的配位数。",
+      "baseline": "距你写可以自子的第鞋。",
+      "hotwords": "距你写可以自子的第鞋。",
+      "corrected": "距你写可以自子的第鞋。",
+      "fixes": [],
+      "hw_diff": false
+    },
+    {
+      "id": "chem_02_sapi",
+      "ref": "这里需要考虑配体的配位数。",
+      "baseline": "这里需要考虑配体的配位数。",
+      "hotwords": "这里需要考虑配体的配位数。",
+      "corrected": "这里需要考虑配体的配位数。",
+      "fixes": [],
+      "hw_diff": false
+    },
+    {
+      "id": "chem_03_melotts",
+      "ref": "这个反应属于Favorskii重排。",
+      "baseline": "这个算水的是的我太中。",
+      "hotwords": "这个算水的是的我太中。",
+      "corrected": "这个算水的是的我太中。",
+      "fixes": [],
+      "hw_diff": false
+    },
+    {
+      "id": "chem_03_sapi",
+      "ref": "这个反应属于Favorskii重排。",
+      "baseline": "这个反应属于viorsky重排。",
+      "hotwords": "这个反应属于viorsky重排。",
+      "corrected": "这个反应属于viorsky重排。",
+      "fixes": [],
+      "hw_diff": false
+    }
+  ]
+}

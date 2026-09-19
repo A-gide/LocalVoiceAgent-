@@ -1,0 +1,51 @@
+{
+  "measured_at": "2026-09-17 16:39:44",
+  "platform": "Windows 11 / Intel Core i9-13980HX / RTX 4060 Laptop 8GB",
+  "profiles": [
+    {
+      "label": "recording",
+      "cpu_cores_used": 0.005,
+      "cpu_cores_peak": 0.029,
+      "cpu_percent_of_machine": 0.03,
+      "ram_used_gb": 21.1,
+      "ram_total_gb": 31.6,
+      "vram_used_mb": 6818.7,
+      "vram_total_mb": 8188.0,
+      "per_process_cores": {
+        "llama-server": 0.0,
+        "screenpipe": 0.005,
+        "open-llm-vtuber": 0.0
+      }
+    },
+    {
+      "label": "live_idle",
+      "cpu_cores_used": 0.003,
+      "cpu_cores_peak": 0.028,
+      "cpu_percent_of_machine": 0.02,
+      "ram_used_gb": 21.1,
+      "ram_total_gb": 31.6,
+      "vram_used_mb": 6826.0,
+      "vram_total_mb": 8188.0,
+      "per_process_cores": {
+        "llama-server": 0.0,
+        "screenpipe": 0.003,
+        "open-llm-vtuber": 0.0
+      }
+    },
+    {
+      "label": "live_talking",
+      "cpu_cores_used": 2.803,
+      "cpu_cores_peak": 4.893,
+      "cpu_percent_of_machine": 17.52,
+      "ram_used_gb": 20.6,
+      "ram_total_gb": 31.6,
+      "vram_used_mb": 6828.4,
+      "vram_total_mb": 8188.0,
+      "per_process_cores": {
+        "llama-server": 0.331,
+        "screenpipe": 0.024,
+        "open-llm-vtuber": 2.449
+      }
+    }
+  ]
+}

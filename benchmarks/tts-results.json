@@ -1,0 +1,109 @@
+{
+ "engines": {
+  "melotts": {
+   "load_s": 2.65,
+   "sample_rate": 44100,
+   "voice": null,
+   "rss_mb": {
+    "before": 323.9,
+    "after": 439.6,
+    "delta": 115.7
+   },
+   "vram_mb": 0,
+   "rows": [
+    {
+     "label": "greeting",
+     "chars": 16,
+     "audio_s": 2.615,
+     "ttfa_ms": 183.7,
+     "gen_ms": 727.1,
+     "rtf": 0.2781,
+     "ms_per_char": 45.44,
+     "wav": "benchmarks\\tts\\melotts_greeting.wav"
+    },
+    {
+     "label": "chem",
+     "chars": 16,
+     "audio_s": 2.519,
+     "ttfa_ms": 575.0,
+     "gen_ms": 575.0,
+     "rtf": 0.2282,
+     "ms_per_char": 35.94,
+     "wav": "benchmarks\\tts\\melotts_chem.wav"
+    },
+    {
+     "label": "jahn_teller",
+     "chars": 19,
+     "audio_s": 1.985,
+     "ttfa_ms": 448.5,
+     "gen_ms": 448.7,
+     "rtf": 0.226,
+     "ms_per_char": 23.62,
+     "wav": "benchmarks\\tts\\melotts_jahn_teller.wav"
+    },
+    {
+     "label": "mixed",
+     "chars": 35,
+     "audio_s": 3.885,
+     "ttfa_ms": 893.0,
+     "gen_ms": 893.1,
+     "rtf": 0.2299,
+     "ms_per_char": 25.52,
+     "wav": "benchmarks\\tts\\melotts_mixed.wav"
+    },
+    {
+     "label": "phys",
+     "chars": 28,
+     "audio_s": 4.783,
+     "ttfa_ms": 511.2,
+     "gen_ms": 1096.2,
+     "rtf": 0.2292,
+     "ms_per_char": 39.15,
+     "wav": "benchmarks\\tts\\melotts_phys.wav"
+    },
+    {
+     "label": "bio",
+     "chars": 32,
+     "audio_s": 5.654,
+     "ttfa_ms": 720.5,
+     "gen_ms": 1244.2,
+     "rtf": 0.22,
+     "ms_per_char": 38.88,
+     "wav": "benchmarks\\tts\\melotts_bio.wav"
+    },
+    {
+     "label": "long",
+     "chars": 91,
+     "audio_s": 15.546,
+     "ttfa_ms": 1036.7,
+     "gen_ms": 3604.5,
+     "rtf": 0.2319,
+     "ms_per_char": 39.61,
+     "wav": "benchmarks\\tts\\melotts_long.wav"
+    },
+    {
+     "label": "punct",
+     "chars": 33,
+     "audio_s": 6.293,
+     "ttfa_ms": 318.3,
+     "gen_ms": 1541.2,
+     "rtf": 0.2449,
+     "ms_per_char": 46.7,
+     "wav": "benchmarks\\tts\\melotts_punct.wav"
+    }
+   ],
+   "summary": {
+    "ttfa_ms_mean": 585.9,
+    "ttfa_ms_max": 1036.7,
+    "rtf_mean": 0.236,
+    "first_rtf": 0.2781,
+    "last_rtf": 0.2449,
+    "degrades": false
+   }
+  }
+ },
+ "notes": [
+  "TTFA comes from the streaming callback: it is the time until the first audio samples exist, which is what a live reply waits for."
+ ],
+ "vram_free_mb_with_llm": 2165.0
+}

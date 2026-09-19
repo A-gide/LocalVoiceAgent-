@@ -1,0 +1,602 @@
+{
+ "name": "sci",
+ "source": "synthesised",
+ "items": [
+  {
+   "id": "general_01_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\general_01_melotts.wav",
+   "ref": "你好，我想测试一下本地语音识别系统。",
+   "domain": "general",
+   "variant": "melotts",
+   "terms": [],
+   "base_id": "general_01"
+  },
+  {
+   "id": "general_01_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\general_01_sapi.wav",
+   "ref": "你好，我想测试一下本地语音识别系统。",
+   "domain": "general",
+   "variant": "sapi",
+   "terms": [],
+   "base_id": "general_01"
+  },
+  {
+   "id": "general_02_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\general_02_melotts.wav",
+   "ref": "今天下午我要整理一下实验数据。",
+   "domain": "general",
+   "variant": "melotts",
+   "terms": [],
+   "base_id": "general_02"
+  },
+  {
+   "id": "general_02_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\general_02_sapi.wav",
+   "ref": "今天下午我要整理一下实验数据。",
+   "domain": "general",
+   "variant": "sapi",
+   "terms": [],
+   "base_id": "general_02"
+  },
+  {
+   "id": "general_03_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\general_03_melotts.wav",
+   "ref": "你好，我现在正在测试本地语音助手。",
+   "domain": "general",
+   "variant": "melotts",
+   "terms": [],
+   "base_id": "general_03"
+  },
+  {
+   "id": "general_03_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\general_03_sapi.wav",
+   "ref": "你好，我现在正在测试本地语音助手。",
+   "domain": "general",
+   "variant": "sapi",
+   "terms": [],
+   "base_id": "general_03"
+  },
+  {
+   "id": "chem_01_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_01_melotts.wav",
+   "ref": "铜离子可以与EDTA发生络合。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "络合",
+    "EDTA"
+   ],
+   "base_id": "chem_01"
+  },
+  {
+   "id": "chem_01_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_01_sapi.wav",
+   "ref": "铜离子可以与EDTA发生络合。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "络合",
+    "EDTA"
+   ],
+   "base_id": "chem_01"
+  },
+  {
+   "id": "chem_02_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_02_melotts.wav",
+   "ref": "这里需要考虑配体的配位数。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "配体",
+    "配位数"
+   ],
+   "base_id": "chem_02"
+  },
+  {
+   "id": "chem_02_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_02_sapi.wav",
+   "ref": "这里需要考虑配体的配位数。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "配体",
+    "配位数"
+   ],
+   "base_id": "chem_02"
+  },
+  {
+   "id": "chem_03_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_03_melotts.wav",
+   "ref": "这个反应属于Favorskii重排。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Favorskii",
+    "重排"
+   ],
+   "base_id": "chem_03"
+  },
+  {
+   "id": "chem_03_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_03_sapi.wav",
+   "ref": "这个反应属于Favorskii重排。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Favorskii",
+    "重排"
+   ],
+   "base_id": "chem_03"
+  },
+  {
+   "id": "chem_04_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_04_melotts.wav",
+   "ref": "Baeyer-Villiger氧化通常涉及迁移能力差异。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Baeyer-Villiger",
+    "氧化"
+   ],
+   "base_id": "chem_04"
+  },
+  {
+   "id": "chem_04_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_04_sapi.wav",
+   "ref": "Baeyer-Villiger氧化通常涉及迁移能力差异。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Baeyer-Villiger",
+    "氧化"
+   ],
+   "base_id": "chem_04"
+  },
+  {
+   "id": "chem_05_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_05_melotts.wav",
+   "ref": "Michaelis-Menten动力学可以使用稳态近似处理。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Michaelis-Menten",
+    "动力学"
+   ],
+   "base_id": "chem_05"
+  },
+  {
+   "id": "chem_05_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_05_sapi.wav",
+   "ref": "Michaelis-Menten动力学可以使用稳态近似处理。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Michaelis-Menten",
+    "动力学"
+   ],
+   "base_id": "chem_05"
+  },
+  {
+   "id": "chem_06_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_06_melotts.wav",
+   "ref": "铜离子与EDTA形成稳定的络合物。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "络合",
+    "EDTA"
+   ],
+   "base_id": "chem_06"
+  },
+  {
+   "id": "chem_06_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_06_sapi.wav",
+   "ref": "铜离子与EDTA形成稳定的络合物。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "络合",
+    "EDTA"
+   ],
+   "base_id": "chem_06"
+  },
+  {
+   "id": "chem_07_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_07_melotts.wav",
+   "ref": "这里需要考虑Jahn-Teller效应。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Jahn-Teller",
+    "效应"
+   ],
+   "base_id": "chem_07"
+  },
+  {
+   "id": "chem_07_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_07_sapi.wav",
+   "ref": "这里需要考虑Jahn-Teller效应。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Jahn-Teller",
+    "效应"
+   ],
+   "base_id": "chem_07"
+  },
+  {
+   "id": "chem_08_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_08_melotts.wav",
+   "ref": "配位数是六的时候晶场分裂能更大。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "配位数",
+    "晶场分裂"
+   ],
+   "base_id": "chem_08"
+  },
+  {
+   "id": "chem_08_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_08_sapi.wav",
+   "ref": "配位数是六的时候晶场分裂能更大。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "配位数",
+    "晶场分裂"
+   ],
+   "base_id": "chem_08"
+  },
+  {
+   "id": "chem_09_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_09_melotts.wav",
+   "ref": "这个反应的Hammett常数是正值。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Hammett"
+   ],
+   "base_id": "chem_09"
+  },
+  {
+   "id": "chem_09_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_09_sapi.wav",
+   "ref": "这个反应的Hammett常数是正值。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Hammett"
+   ],
+   "base_id": "chem_09"
+  },
+  {
+   "id": "chem_10_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_10_melotts.wav",
+   "ref": "Cannizzaro反应需要浓碱条件。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Cannizzaro"
+   ],
+   "base_id": "chem_10"
+  },
+  {
+   "id": "chem_10_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_10_sapi.wav",
+   "ref": "Cannizzaro反应需要浓碱条件。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Cannizzaro"
+   ],
+   "base_id": "chem_10"
+  },
+  {
+   "id": "chem_11_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_11_melotts.wav",
+   "ref": "螯合物的稳定性通常高于单齿配体。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "螯合",
+    "配体"
+   ],
+   "base_id": "chem_11"
+  },
+  {
+   "id": "chem_11_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\chem_11_sapi.wav",
+   "ref": "螯合物的稳定性通常高于单齿配体。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "螯合",
+    "配体"
+   ],
+   "base_id": "chem_11"
+  },
+  {
+   "id": "phys_01_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\phys_01_melotts.wav",
+   "ref": "这里可以使用Levi-Civita联络。",
+   "domain": "physics",
+   "variant": "melotts",
+   "terms": [
+    "Levi-Civita",
+    "联络"
+   ],
+   "base_id": "phys_01"
+  },
+  {
+   "id": "phys_01_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\phys_01_sapi.wav",
+   "ref": "这里可以使用Levi-Civita联络。",
+   "domain": "physics",
+   "variant": "sapi",
+   "terms": [
+    "Levi-Civita",
+    "联络"
+   ],
+   "base_id": "phys_01"
+  },
+  {
+   "id": "phys_02_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\phys_02_melotts.wav",
+   "ref": "这是Minkowski时空中的proper time。",
+   "domain": "physics",
+   "variant": "melotts",
+   "terms": [
+    "Minkowski",
+    "proper time"
+   ],
+   "base_id": "phys_02"
+  },
+  {
+   "id": "phys_02_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\phys_02_sapi.wav",
+   "ref": "这是Minkowski时空中的proper time。",
+   "domain": "physics",
+   "variant": "sapi",
+   "terms": [
+    "Minkowski",
+    "proper time"
+   ],
+   "base_id": "phys_02"
+  },
+  {
+   "id": "phys_03_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\phys_03_melotts.wav",
+   "ref": "哈密顿量必须是厄米算符。",
+   "domain": "physics",
+   "variant": "melotts",
+   "terms": [
+    "哈密顿量",
+    "厄米"
+   ],
+   "base_id": "phys_03"
+  },
+  {
+   "id": "phys_03_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\phys_03_sapi.wav",
+   "ref": "哈密顿量必须是厄米算符。",
+   "domain": "physics",
+   "variant": "sapi",
+   "terms": [
+    "哈密顿量",
+    "厄米"
+   ],
+   "base_id": "phys_03"
+  },
+  {
+   "id": "phys_04_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\phys_04_melotts.wav",
+   "ref": "布里渊区边界处的能带结构需要仔细计算。",
+   "domain": "physics",
+   "variant": "melotts",
+   "terms": [
+    "布里渊区",
+    "能带"
+   ],
+   "base_id": "phys_04"
+  },
+  {
+   "id": "phys_04_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\phys_04_sapi.wav",
+   "ref": "布里渊区边界处的能带结构需要仔细计算。",
+   "domain": "physics",
+   "variant": "sapi",
+   "terms": [
+    "布里渊区",
+    "能带"
+   ],
+   "base_id": "phys_04"
+  },
+  {
+   "id": "phys_05_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\phys_05_melotts.wav",
+   "ref": "狄拉克方程描述了自旋二分之一的粒子。",
+   "domain": "physics",
+   "variant": "melotts",
+   "terms": [
+    "狄拉克"
+   ],
+   "base_id": "phys_05"
+  },
+  {
+   "id": "phys_05_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\phys_05_sapi.wav",
+   "ref": "狄拉克方程描述了自旋二分之一的粒子。",
+   "domain": "physics",
+   "variant": "sapi",
+   "terms": [
+    "狄拉克"
+   ],
+   "base_id": "phys_05"
+  },
+  {
+   "id": "phys_06_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\phys_06_melotts.wav",
+   "ref": "拉格朗日量对时间的积分给出作用量。",
+   "domain": "physics",
+   "variant": "melotts",
+   "terms": [
+    "拉格朗日量"
+   ],
+   "base_id": "phys_06"
+  },
+  {
+   "id": "phys_06_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\phys_06_sapi.wav",
+   "ref": "拉格朗日量对时间的积分给出作用量。",
+   "domain": "physics",
+   "variant": "sapi",
+   "terms": [
+    "拉格朗日量"
+   ],
+   "base_id": "phys_06"
+  },
+  {
+   "id": "bio_01_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\bio_01_melotts.wav",
+   "ref": "GPCR激活后通过G蛋白调控下游信号。",
+   "domain": "biology",
+   "variant": "melotts",
+   "terms": [
+    "GPCR",
+    "G蛋白"
+   ],
+   "base_id": "bio_01"
+  },
+  {
+   "id": "bio_01_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\bio_01_sapi.wav",
+   "ref": "GPCR激活后通过G蛋白调控下游信号。",
+   "domain": "biology",
+   "variant": "sapi",
+   "terms": [
+    "GPCR",
+    "G蛋白"
+   ],
+   "base_id": "bio_01"
+  },
+  {
+   "id": "bio_02_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\bio_02_melotts.wav",
+   "ref": "这里涉及JAK-STAT信号通路。",
+   "domain": "biology",
+   "variant": "melotts",
+   "terms": [
+    "JAK-STAT",
+    "通路"
+   ],
+   "base_id": "bio_02"
+  },
+  {
+   "id": "bio_02_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\bio_02_sapi.wav",
+   "ref": "这里涉及JAK-STAT信号通路。",
+   "domain": "biology",
+   "variant": "sapi",
+   "terms": [
+    "JAK-STAT",
+    "通路"
+   ],
+   "base_id": "bio_02"
+  },
+  {
+   "id": "bio_03_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\bio_03_melotts.wav",
+   "ref": "MAPK和PI3K通路都会影响细胞增殖。",
+   "domain": "biology",
+   "variant": "melotts",
+   "terms": [
+    "MAPK",
+    "PI3K"
+   ],
+   "base_id": "bio_03"
+  },
+  {
+   "id": "bio_03_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\bio_03_sapi.wav",
+   "ref": "MAPK和PI3K通路都会影响细胞增殖。",
+   "domain": "biology",
+   "variant": "sapi",
+   "terms": [
+    "MAPK",
+    "PI3K"
+   ],
+   "base_id": "bio_03"
+  },
+  {
+   "id": "bio_04_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\bio_04_melotts.wav",
+   "ref": "泛素化与磷酸化是两种常见的翻译后修饰。",
+   "domain": "biology",
+   "variant": "melotts",
+   "terms": [
+    "泛素化",
+    "磷酸化"
+   ],
+   "base_id": "bio_04"
+  },
+  {
+   "id": "bio_04_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\bio_04_sapi.wav",
+   "ref": "泛素化与磷酸化是两种常见的翻译后修饰。",
+   "domain": "biology",
+   "variant": "sapi",
+   "terms": [
+    "泛素化",
+    "磷酸化"
+   ],
+   "base_id": "bio_04"
+  },
+  {
+   "id": "bio_05_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\bio_05_melotts.wav",
+   "ref": "糖异生主要发生在肝脏。",
+   "domain": "biology",
+   "variant": "melotts",
+   "terms": [
+    "糖异生"
+   ],
+   "base_id": "bio_05"
+  },
+  {
+   "id": "bio_05_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\bio_05_sapi.wav",
+   "ref": "糖异生主要发生在肝脏。",
+   "domain": "biology",
+   "variant": "sapi",
+   "terms": [
+    "糖异生"
+   ],
+   "base_id": "bio_05"
+  },
+  {
+   "id": "mixed_01_melotts",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\mixed_01_melotts.wav",
+   "ref": "Favorskii rearrangement是一种重要的有机重排反应。",
+   "domain": "chemistry",
+   "variant": "melotts",
+   "terms": [
+    "Favorskii",
+    "rearrangement"
+   ],
+   "base_id": "mixed_01"
+  },
+  {
+   "id": "mixed_01_sapi",
+   "wav": "E:\\AI\\LocalVoiceAgent\\benchmarks\\audio\\sci\\mixed_01_sapi.wav",
+   "ref": "Favorskii rearrangement是一种重要的有机重排反应。",
+   "domain": "chemistry",
+   "variant": "sapi",
+   "terms": [
+    "Favorskii",
+    "rearrangement"
+   ],
+   "base_id": "mixed_01"
+  }
+ ]
+}

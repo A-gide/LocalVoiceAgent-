@@ -1,0 +1,20 @@
+{
+  "llm_mode": "local",
+  "local_gguf_path": "W:\\model\\XHToken\\Spark-X2.5-4B-GGUF\\Spark-X2.5-4B-Q8_0.gguf",
+  "cloud_provider": "deepseek",
+  "cloud_base_url": "https://api.deepseek.com/v1",
+  "cloud_api_key_enc": "",
+  "cloud_model": "deepseek-chat",
+  "asr_provider": "local",
+  "asr_base_url": "http://127.0.0.1:12393/v1/audio/transcriptions",
+  "asr_api_key_enc": "",
+  "asr_model": "whisper-1",
+  "tts_provider": "local",
+  "tts_base_url": "http://127.0.0.1:8880/v1",
+  "tts_api_key_enc": "",
+  "tts_model": "kokoro",
+  "tts_voice": "af_sky+af_bella",
+  "active_character": "conf.yaml",
+  "idle_vram_release_mins": 15,
+  "pet_dormancy_mode": true
+}

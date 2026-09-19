@@ -1,0 +1,15 @@
+=== GIT STATUS ===
+On branch main
+Your branch is ahead of 'origin/main' by 6 commits.
+  (use "git push" to publish your local commits)
+
+nothing to commit, working tree clean
+
+=== GIT LOG (LAST 6) ===
+ff9d012 fix(v2-rework): configure pytest.ini, implement A5 early transcription, wire P1-2 hotwords, and fix user profile BOM
+a11fc8d test(v2): add comprehensive v2 test suite verifying A1-A8, P1-P2, B1-B2
+451409d feat(proactive): add Vocalis-inspired tiered silence follow-up and user profile injection
+1cef82b feat(core): implement OPTIMIZATION-REVIEW-v2 architectural overhaul
+0e73308 fix(memory-router): dynamic paths, domain-gated correction, SQL pushdown, realistic timestamps
+9ff3e72 feat(core): integrate Screenpipe memory router, terminology correction and reasoning routing
+

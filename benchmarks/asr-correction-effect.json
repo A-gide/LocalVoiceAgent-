@@ -1,0 +1,428 @@
+{
+ "paraformer": {
+  "sci_by_renderer": {
+   "melotts": {
+    "n": 26,
+    "cer_raw": 0.2402,
+    "cer_corrected": 0.1929,
+    "improved": 8,
+    "worsened": 0,
+    "worsened_but_term_recovered": 0
+   },
+   "sapi": {
+    "n": 26,
+    "cer_raw": 0.1143,
+    "cer_corrected": 0.0914,
+    "improved": 7,
+    "worsened": 0,
+    "worsened_but_term_recovered": 2
+   }
+  },
+  "terms": {
+   "络合": {
+    "n": 4,
+    "raw": 1,
+    "corrected": 1
+   },
+   "配体": {
+    "n": 4,
+    "raw": 3,
+    "corrected": 4
+   },
+   "配位数": {
+    "n": 4,
+    "raw": 4,
+    "corrected": 4
+   },
+   "晶场分裂": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 2
+   },
+   "螯合": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 1
+   },
+   "哈密顿量": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   },
+   "厄米": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 1
+   },
+   "布里渊区": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 2
+   },
+   "糖异生": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 1
+   },
+   "泛素化": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   },
+   "EDTA": {
+    "n": 4,
+    "raw": 0,
+    "corrected": 2
+   },
+   "Hammett": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 2
+   },
+   "GPCR": {
+    "n": 2,
+    "raw": 2,
+    "corrected": 2
+   },
+   "MAPK": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 1
+   },
+   "PI3K": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 0
+   },
+   "JAK-STAT": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 0
+   },
+   "Levi-Civita": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 0
+   },
+   "Minkowski": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 0
+   },
+   "Favorskii": {
+    "n": 4,
+    "raw": 0,
+    "corrected": 0
+   },
+   "Michaelis-Menten": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 0
+   },
+   "狄拉克": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   },
+   "拉格朗日量": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   }
+  },
+  "real": {
+   "n": 60,
+   "cer_raw": 0.026,
+   "cer_corrected": 0.0304,
+   "utterances_modified": 2
+  },
+  "load_s": 1.5,
+  "rss_delta_mb": 285.7,
+  "rtf_real": 0.0189,
+  "first_call_ms": 107.4
+ },
+ "qwen3asr": {
+  "sci_by_renderer": {
+   "melotts": {
+    "n": 26,
+    "cer_raw": 0.2738,
+    "cer_corrected": 0.2306,
+    "improved": 8,
+    "worsened": 0,
+    "worsened_but_term_recovered": 0
+   },
+   "sapi": {
+    "n": 26,
+    "cer_raw": 0.1281,
+    "cer_corrected": 0.1179,
+    "improved": 3,
+    "worsened": 0,
+    "worsened_but_term_recovered": 1
+   }
+  },
+  "terms": {
+   "络合": {
+    "n": 4,
+    "raw": 4,
+    "corrected": 4
+   },
+   "配体": {
+    "n": 4,
+    "raw": 4,
+    "corrected": 4
+   },
+   "配位数": {
+    "n": 4,
+    "raw": 4,
+    "corrected": 4
+   },
+   "晶场分裂": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 1
+   },
+   "螯合": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 1
+   },
+   "哈密顿量": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   },
+   "厄米": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   },
+   "布里渊区": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   },
+   "糖异生": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 1
+   },
+   "泛素化": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   },
+   "EDTA": {
+    "n": 4,
+    "raw": 2,
+    "corrected": 3
+   },
+   "Hammett": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 1
+   },
+   "GPCR": {
+    "n": 2,
+    "raw": 2,
+    "corrected": 2
+   },
+   "MAPK": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 1
+   },
+   "PI3K": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 1
+   },
+   "JAK-STAT": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 1
+   },
+   "Levi-Civita": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 0
+   },
+   "Minkowski": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 1
+   },
+   "Favorskii": {
+    "n": 4,
+    "raw": 0,
+    "corrected": 0
+   },
+   "Michaelis-Menten": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 0
+   },
+   "狄拉克": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   },
+   "拉格朗日量": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   }
+  },
+  "real": {
+   "n": 60,
+   "cer_raw": 0.0252,
+   "cer_corrected": 0.0297,
+   "utterances_modified": 2
+  },
+  "load_s": 6.23,
+  "rss_delta_mb": 1034.3,
+  "rtf_real": 0.2094,
+  "first_call_ms": 3982.4
+ },
+ "sensevoice": {
+  "sci_by_renderer": {
+   "melotts": {
+    "n": 26,
+    "cer_raw": 0.264,
+    "cer_corrected": 0.1984,
+    "improved": 14,
+    "worsened": 0,
+    "worsened_but_term_recovered": 0
+   },
+   "sapi": {
+    "n": 26,
+    "cer_raw": 0.1379,
+    "cer_corrected": 0.0861,
+    "improved": 11,
+    "worsened": 0,
+    "worsened_but_term_recovered": 1
+   }
+  },
+  "terms": {
+   "络合": {
+    "n": 4,
+    "raw": 3,
+    "corrected": 4
+   },
+   "配体": {
+    "n": 4,
+    "raw": 3,
+    "corrected": 4
+   },
+   "配位数": {
+    "n": 4,
+    "raw": 4,
+    "corrected": 4
+   },
+   "晶场分裂": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 2
+   },
+   "螯合": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 1
+   },
+   "哈密顿量": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   },
+   "厄米": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   },
+   "布里渊区": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 2
+   },
+   "糖异生": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 1
+   },
+   "泛素化": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   },
+   "EDTA": {
+    "n": 4,
+    "raw": 0,
+    "corrected": 3
+   },
+   "Hammett": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 0
+   },
+   "GPCR": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 2
+   },
+   "MAPK": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 1
+   },
+   "PI3K": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 1
+   },
+   "JAK-STAT": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 0
+   },
+   "Levi-Civita": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 1
+   },
+   "Minkowski": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 2
+   },
+   "Favorskii": {
+    "n": 4,
+    "raw": 0,
+    "corrected": 2
+   },
+   "Michaelis-Menten": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 0
+   },
+   "狄拉克": {
+    "n": 2,
+    "raw": 0,
+    "corrected": 2
+   },
+   "拉格朗日量": {
+    "n": 2,
+    "raw": 1,
+    "corrected": 1
+   }
+  },
+  "real": {
+   "n": 60,
+   "cer_raw": 0.0337,
+   "cer_corrected": 0.0382,
+   "utterances_modified": 2
+  },
+  "load_s": 1.05,
+  "rss_delta_mb": 297.5,
+  "rtf_real": 0.0278,
+  "first_call_ms": 157.4
+ }
+}

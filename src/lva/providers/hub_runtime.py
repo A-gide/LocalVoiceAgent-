@@ -32,6 +32,9 @@ class HubRuntimeSaga:
             load_origin="unknown",
             status="unbound",
         )
+        #: The binding in effect before the current attempt (plan L636: a failed
+        #: switch records it so an *explicit* rollback operation can re-bind).
+        self.previous_binding: HubBinding | None = None
 
     def _update_status(
         self,
@@ -43,6 +46,32 @@ class HubRuntimeSaga:
         if self.on_binding_changed:
             self.on_binding_changed(self.binding)
 
+    def rollback(self, previous: HubBinding) -> HubBinding:
+        """Record the pre-attempt binding after a failed switch (L1275/L1278).
+
+        Plan L636 is explicit about the resulting status: a failure leaves the
+        binding in ``FAILED/DEGRADED``, the old turn is **not** resurrected, and
+        re-binding the old model requires an **explicit rollback operation** --
+        "restoring old in-memory state and pretending success" is forbidden.
+
+        So this method records *what was serving before* for the caller to act on,
+        but it must **not** flip the status back to ``ready``.  Reporting ``ready``
+        here would be exactly the pretence L636 forbids: the switch did not
+        succeed, so the binding has to keep saying so.
+        """
+        self.previous_binding = previous.model_copy(deep=True)
+        self.binding.active_model_id = previous.active_model_id
+        self.binding.load_origin = previous.load_origin
+        # Status stays FAILED/DEGRADED -- see the docstring.  ``_update_status``
+        # is deliberately not called here; the failure path already set it.
+        log.warning(
+            "Model switch failed; recorded previous active=%s for an explicit "
+            "rollback operation (status stays %s)",
+            previous.active_model_id,
+            self.binding.status,
+        )
+        return self.binding
+
     async def switch_model(
         self,
         target_model_id: str,
@@ -50,6 +79,9 @@ class HubRuntimeSaga:
     ) -> HubBinding:
         """Execute explicit model change saga according to Part 5.5."""
         log.info("Starting model switch saga -> target: %s", target_model_id)
+        # Remember where we were so a failure can roll back rather than leaving the
+        # binding describing a model that is not actually serving.
+        previous = self.binding.model_copy(deep=True)
         self.binding.desired_model_id = target_model_id
         self._update_status("preparing")
 
@@ -101,9 +133,19 @@ class HubRuntimeSaga:
             profile = await self.control.get_profile(target_model_id)
             await self.control.load_model(target_model_id, profile)
         except Exception as exc:
-            err_msg = f"Failed to load model {target_model_id}: {exc}"
+            # A model whose Hub profile is missing must be reported as
+            # PROFILE_REQUIRED, not loaded with invented parameters (plan L593:
+            # LVA must not guess -ngl/-c/mmproj).
+            missing_profile = "profile" in str(exc).lower() and (
+                "not found" in str(exc).lower() or "missing" in str(exc).lower() or "empty" in str(exc).lower()
+            )
+            code = ErrorCode.PROFILE_REQUIRED if missing_profile else ErrorCode.MODEL_LOAD_FAILED
+            err_msg = f"{code.value}: failed to load model {target_model_id}: {exc}"
             log.exception(err_msg)
             self._update_status("failed", last_error=err_msg)
+            # Roll back to the previously verified binding: the failed target is
+            # not serving, so the binding must not claim it is.
+            self.rollback(previous)
             raise
 
         # Step 4: VERIFY

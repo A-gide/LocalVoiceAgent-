@@ -44,7 +44,10 @@ BLOCK_FRAMES = 1024       # frames per capture callback
 VAD_WINDOW = 512          # samples per VAD decision window @16k (32 ms)
 
 # ---------------------------------------------------------------------- llm
-LLM_BASE_URL = os.environ.get("LVA_LLM_URL", "http://127.0.0.1:1234/v1")
+# PR-015 (plan L1263/L1285): the default LLM endpoint is the **Hub inference
+# face**, not a bare child llama-server.  The Hub is the model runtime authority
+# (hard constraint 2); a direct child endpoint must not be the default.
+LLM_BASE_URL = os.environ.get("LVA_LLM_URL", "http://127.0.0.1:8080/v1")
 LLM_API_KEY = os.environ.get("LVA_LLM_KEY", "")   # never written to logs
 LLM_MODEL = os.environ.get("LVA_LLM_MODEL", "local-live-llm")
 LLM_TIMEOUT = float(os.environ.get("LVA_LLM_TIMEOUT", "180"))
@@ -57,7 +60,9 @@ LLM_DEEP_MAX_TOKENS = int(os.environ.get("LVA_LLM_DEEP_MAX_TOKENS", "2048"))
 # ---------------------------------------------------------------- services
 SERVICE_HOST = "127.0.0.1"        # loopback only; never 0.0.0.0
 SERVICE_PORT = int(os.environ.get("LVA_PORT", "8765"))
-LLAMA_SERVER_PORT = int(os.environ.get("LVA_LLAMA_PORT", "1234"))
+# PR-015: the Hub control face.  LVA no longer owns a llama-server port; this is
+# the Hub the Core talks to, kept as a named constant so nothing hardcodes it.
+HUB_PORT = int(os.environ.get("LVA_HUB_PORT", "8080"))
 
 DB_PATH = DATA / "memory.db"
 

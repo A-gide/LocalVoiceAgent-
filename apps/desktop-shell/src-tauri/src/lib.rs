@@ -22,7 +22,7 @@ use bridge::CoreBridge;
 use core_supervisor::CoreSupervisor;
 use process_manager::{FullServicesStatus, ProcessManager};
 use service_registry::ServiceRegistry;
-use settings::{AppSettings, GgufModelInfo, PublicAppSettings, SettingsManager};
+use settings::{AppSettings, PublicAppSettings, SettingsManager};
 use supervisor::Supervisor;
 
 
@@ -199,17 +199,6 @@ fn start_attestation_reporter(bridge: Arc<CoreBridge>) {
 }
 
 #[tauri::command]
-fn unload_vram(state: State<Arc<ProcessManager>>) -> Result<String, String> {
-    state.unload_vram()
-}
-
-#[tauri::command]
-fn cold_start_llm(state: State<Arc<ProcessManager>>) -> Result<f64, String> {
-    mark_user_activity();
-    state.cold_start_llm()
-}
-
-#[tauri::command]
 fn toggle_pet(app: AppHandle, sm: State<Arc<SettingsManager>>) {
     mark_user_activity();
     tray::toggle_pet_window(&app, &sm);
@@ -268,31 +257,6 @@ async fn send_core_command(
 #[tauri::command]
 fn update_settings(new_settings: AppSettings, sm: State<Arc<SettingsManager>>) -> Result<(), String> {
     sm.update_settings(new_settings)
-}
-
-#[tauri::command]
-fn scan_models(sm: State<Arc<SettingsManager>>) -> Vec<GgufModelInfo> {
-    sm.get_cached_models()
-}
-
-#[tauri::command]
-fn refresh_models(sm: State<Arc<SettingsManager>>) -> Vec<GgufModelInfo> {
-    sm.refresh_model_cache();
-    sm.get_cached_models()
-}
-
-#[tauri::command]
-fn switch_llm_model(
-    model_path: String,
-    pm: State<Arc<ProcessManager>>,
-    sm: State<Arc<SettingsManager>>,
-) -> Result<f64, String> {
-    mark_user_activity();
-    let elapsed = pm.switch_model(&model_path)?;
-    let mut current = sm.get_settings();
-    current.local_gguf_path = model_path;
-    let _ = sm.update_settings(current);
-    Ok(elapsed)
 }
 
 #[tauri::command]
@@ -361,8 +325,6 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_services_status,
             get_service_identity_status,
-            unload_vram,
-            cold_start_llm,
             toggle_pet,
             open_settings,
             open_chat,
@@ -373,9 +335,6 @@ pub fn run() {
             clear_secret,
             send_core_command,
             update_settings,
-            scan_models,
-            refresh_models,
-            switch_llm_model,
             rebuild_pet_benchmark,
             get_autostart_status,
             set_autostart_status

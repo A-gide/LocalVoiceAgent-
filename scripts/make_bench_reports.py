@@ -201,9 +201,10 @@ def llm_report() -> None:
         })
 
     L = ["# LLM benchmark", "", f"Machine: {HOST}", "",
-         f"Endpoint: `{C.LLM_BASE_URL}` (loopback), served by the llama.cpp runtime that "
-         "ships with LM Studio, started through `scripts/llm_serve.py` with "
-         f"`-c {C.LLM_CONTEXT}` and `-ngl 99`.", "",
+         f"Endpoint: `{C.LLM_BASE_URL}` (loopback), served by the llama.cpp-hub "
+         "model runtime, which owns the backend and its launch parameters "
+         f"(context {C.LLM_CONTEXT} is requested through the Hub, not passed to a "
+         "child process by LVA).", "",
          "| model | served as | FAST TTFT median | FAST TTFT min | chars/s | VRAM MB | "
          "DEEP TTFT | DEEP total |",
          "|---|---|---|---|---|---|---|---|"]

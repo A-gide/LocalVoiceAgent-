@@ -1,16 +1,30 @@
-pub mod process_manager;
-pub mod tray;
-pub mod hotkey;
-pub mod crypto;
-pub mod settings;
-pub mod paths;
 pub mod autostart;
+pub mod bridge;
+pub mod core_supervisor;
+pub mod crypto;
+pub mod generated;
+pub mod hotkey;
+pub mod managed_capture;
+pub mod network_attestation;
+pub mod paths;
+pub mod process_manager;
+pub mod service_registry;
+pub mod settings;
+pub mod supervisor;
+pub mod tray;
+pub mod ws;
 
 use std::sync::{atomic::{AtomicU64, Ordering}, Arc};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use serde::Serialize;
 use tauri::{AppHandle, Manager, State};
+use bridge::CoreBridge;
+use core_supervisor::CoreSupervisor;
 use process_manager::{FullServicesStatus, ProcessManager};
-use settings::{AppSettings, GgufModelInfo, SettingsManager};
+use service_registry::ServiceRegistry;
+use settings::{AppSettings, GgufModelInfo, PublicAppSettings, SettingsManager};
+use supervisor::Supervisor;
+
 
 // Global activity timestamp for idle VRAM timer
 static LAST_ACTIVITY_EPOCH: AtomicU64 = AtomicU64::new(0);
@@ -36,6 +50,154 @@ fn get_services_status(state: State<Arc<ProcessManager>>) -> FullServicesStatus 
     state.get_status()
 }
 
+/// Typed service identity/readiness + effective-bind attestation (PR-008).
+///
+/// This is the reader that keeps `service_registry` from being dead code, and it
+/// is the surface UI/Core consume instead of inferring health from a PID or port.
+#[tauri::command]
+fn get_service_identity_status(
+    registry: State<'_, Arc<ServiceRegistry>>,
+) -> ServiceIdentityReport {
+    let identities = registry.get_all_identities();
+    ServiceIdentityReport {
+        services: identities,
+        hub_bind: observe_hub_bind_attestation(),
+    }
+}
+
+/// The typed payload returned to the WebView.
+#[derive(Debug, Clone, Serialize)]
+pub struct ServiceIdentityReport {
+    pub services: Vec<service_registry::ServiceIdentity>,
+    pub hub_bind: network_attestation::HubBindAttestation,
+}
+
+/// Read the OS listener table and reduce it to a redacted bind verdict.
+///
+/// Read-only by construction: this function runs `netstat` (a query), parses the
+/// output and returns a verdict.  It never touches a process handle, so observing
+/// a listener can never become kill authority (frozen acceptance L1215).
+fn observe_hub_bind_attestation() -> network_attestation::HubBindAttestation {
+    use network_attestation::{attest_for_port, parse_listener_table, HubBindReason};
+
+    let attestation_id = uuid::Uuid::new_v4().to_string();
+    let table = match std::process::Command::new("netstat").args(["-ano", "-p", "tcp"]).output() {
+        Ok(output) if output.status.success() => {
+            String::from_utf8_lossy(&output.stdout).to_string()
+        }
+        _ => {
+            // Cannot read the table -> cannot prove anything -> fail closed.
+            let mut att = attest_for_port(&[], 0, &attestation_id).0;
+            att.reason_code = Some(HubBindReason::ProbeFailed);
+            return att;
+        }
+    };
+
+    let rows = parse_listener_table(&table);
+    attest_for_port(&rows, HUB_CONTROL_PORT, &attestation_id).0
+}
+
+/// The Hub control port whose effective bind must be attested.
+const HUB_CONTROL_PORT: u16 = 8089;
+
+/// How often the effective bind is re-attested.
+///
+/// Plan L665 is a *continuing* condition, not a one-time ticket: Core expires a
+/// verdict through its `revalidate_after` deadline, so Rust must keep reporting or
+/// the gate would close on its own and stay closed.  The interval is comfortably
+/// shorter than the deadline Core is given, so a single missed cycle does not
+/// immediately close the gate.
+const REATTEST_INTERVAL: Duration = Duration::from_secs(30);
+
+/// Report the current effective-bind verdict to LVA Core (PR-012).
+///
+/// Transport: the **existing authenticated WS**.  Rust is the WS client and Core
+/// is the server, so the verdict goes straight to Core; the Tauri event channel is
+/// not involved (that channel reaches the WebView, not Core).
+///
+/// `send_command` blocks until the correlated result arrives, so the caller must
+/// already be off the UI/IPC thread -- this function is called from the periodic
+/// thread below, not from a Tauri command handler.
+fn send_bind_attestation(bridge: &CoreBridge) -> Result<serde_json::Value, String> {
+    let attestation = observe_hub_bind_attestation();
+    // The contract's HubAttestBindPayload nests the verdict under `attestation`.
+    // `attestation_id` is what Core correlates against; the rest of the verdict is
+    // already redacted by construction (no PID, port or address).
+    let cmd = serde_json::json!({
+        "type": "hub.attest_bind",
+        "payload": {
+            "type": "hub.attest_bind",
+            "attestation": {
+                "status": match attestation.status {
+                    network_attestation::AttestationStatus::VerifiedLoopback => "VERIFIED_LOOPBACK",
+                    network_attestation::AttestationStatus::VerifiedNonLoopback => "VERIFIED_NON_LOOPBACK",
+                    network_attestation::AttestationStatus::UnverifiedBind => "UNVERIFIED_BIND",
+                },
+                "reason_code": attestation.reason_code.map(|reason| {
+                    // Core's HubBindReason uses SCREAMING_SNAKE_CASE names.
+                    match reason {
+                        network_attestation::HubBindReason::ResolvedNonLoopback => "RESOLVED_NON_LOOPBACK",
+                        network_attestation::HubBindReason::ListenerNonLoopback => "LISTENER_NON_LOOPBACK",
+                        network_attestation::HubBindReason::ProcessUnmapped => "PROCESS_UNMAPPED",
+                        network_attestation::HubBindReason::HubInfoUnavailable => "HUB_INFO_UNAVAILABLE",
+                        network_attestation::HubBindReason::RevalidationRequired => "REVALIDATION_REQUIRED",
+                        network_attestation::HubBindReason::ProbeFailed => "PROBE_FAILED",
+                    }
+                }),
+                "checked_at": attestation.checked_at.to_rfc3339(),
+                "attestation_id": attestation.attestation_id,
+                // The deadline Core enforces.  A verified verdict is given the
+                // full interval plus slack; anything unverified is given no grace
+                // at all, because a verdict that cannot prove loopback must not be
+                // allowed to authorise control even briefly.
+                "revalidate_after": match attestation.status {
+                    network_attestation::AttestationStatus::VerifiedLoopback => Some(
+                        (chrono::Utc::now()
+                            + chrono::Duration::seconds(
+                                REATTEST_INTERVAL.as_secs() as i64 * 3,
+                            ))
+                        .to_rfc3339(),
+                    ),
+                    _ => None,
+                },
+            },
+        },
+    });
+
+    match bridge.send_command(cmd) {
+        Ok(result) => {
+            log::info!(
+                "[Core] Reported bind attestation {} (control_allowed={})",
+                attestation.attestation_id,
+                result
+                    .get("data")
+                    .and_then(|data| data.get("control_allowed"))
+                    .and_then(|allowed| allowed.as_bool())
+                    .unwrap_or(false),
+            );
+            Ok(result)
+        }
+        Err(e) => {
+            // Logged rather than swallowed: a dropped attestation is
+            // indistinguishable from a legitimately closed gate at the Core end,
+            // which would make this very hard to diagnose.
+            log::warn!("[Core] Failed to report bind attestation: {}", e);
+            Err(e)
+        }
+    }
+}
+
+/// Periodic re-attestation thread (PR-012).
+fn start_attestation_reporter(bridge: Arc<CoreBridge>) {
+    std::thread::Builder::new()
+        .name("lva-attestation-reporter".into())
+        .spawn(move || loop {
+            std::thread::sleep(REATTEST_INTERVAL);
+            let _ = send_bind_attestation(&bridge);
+        })
+        .ok();
+}
+
 #[tauri::command]
 fn unload_vram(state: State<Arc<ProcessManager>>) -> Result<String, String> {
     state.unload_vram()
@@ -59,8 +221,48 @@ fn open_settings(app: AppHandle) {
 }
 
 #[tauri::command]
-fn get_settings(sm: State<Arc<SettingsManager>>) -> AppSettings {
-    sm.get_settings()
+fn open_chat(app: AppHandle) {
+    tray::open_chat_window(&app);
+}
+
+#[tauri::command]
+fn open_memory(app: AppHandle) {
+    tray::open_memory_window(&app);
+}
+
+#[tauri::command]
+fn get_settings(sm: State<Arc<SettingsManager>>) -> PublicAppSettings {
+    sm.get_public_settings()
+}
+
+#[tauri::command]
+fn get_public_settings(sm: State<Arc<SettingsManager>>) -> PublicAppSettings {
+    sm.get_public_settings()
+}
+
+#[tauri::command]
+fn set_secret(secret_type: String, secret_value: String, sm: State<Arc<SettingsManager>>) -> Result<(), String> {
+    sm.set_secret(&secret_type, &secret_value)
+}
+
+#[tauri::command]
+fn clear_secret(secret_type: String, sm: State<Arc<SettingsManager>>) -> Result<(), String> {
+    sm.clear_secret(&secret_type)
+}
+
+#[tauri::command]
+async fn send_core_command(
+    cmd: serde_json::Value,
+    bridge: State<'_, Arc<CoreBridge>>,
+) -> Result<serde_json::Value, String> {
+    // Part 8.1: the WebView never reaches Core itself; it only invokes this
+    // command. send_command blocks until the correlated command_result arrives,
+    // so it runs on a blocking worker: a non-async command would execute on the
+    // WebView IPC thread and stall the whole UI for up to the command timeout.
+    let bridge = Arc::clone(&bridge);
+    tauri::async_runtime::spawn_blocking(move || bridge.send_command(cmd))
+        .await
+        .map_err(|e| format!("Core command task failed: {}", e))?
 }
 
 #[tauri::command]
@@ -125,24 +327,24 @@ pub fn run() {
     let pm_clone = process_mgr.clone();
     let sm_clone = settings_mgr.clone();
 
-    // Spawn Idle VRAM release daemon thread
-    let pm_idle = process_mgr.clone();
-    let sm_idle = settings_mgr.clone();
-    std::thread::spawn(move || {
-        loop {
-            std::thread::sleep(Duration::from_secs(30));
-            let policy_mins = sm_idle.get_settings().idle_vram_release_mins;
-            if policy_mins > 0 && ProcessManager::is_port_listening(1234) {
-                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
-                let last = LAST_ACTIVITY_EPOCH.load(Ordering::SeqCst);
-                let idle_secs = now.saturating_sub(last);
-                if idle_secs >= (policy_mins as u64 * 60) {
-                    println!("[IdleVRAM] Inactive for {}s (threshold: {}m) -> Releasing ~4.9GB VRAM", idle_secs, policy_mins);
-                    let _ = pm_idle.unload_vram();
-                }
-            }
-        }
-    });
+    let supervisor = Arc::new(Supervisor::new());
+    let bridge = Arc::new(CoreBridge::new());
+    let service_registry = Arc::new(ServiceRegistry::new());
+    // PR-008: observe the desktop-side services so the typed identity/readiness
+    // surface is actually populated.  Observation only -- the registry holds no
+    // child handle and can therefore never confer stop authority by itself.
+    service_registry.observe(
+        "lva_core",
+        service_registry::Readiness::Starting,
+        supervisor::ProcessOwnership::Unknown,
+        "lva_core:pending",
+        None,
+        None,
+    );
+    let bridge_for_events = bridge.clone();
+    let supervisor_for_core = supervisor.clone();
+    let bridge_for_core = bridge.clone();
+    let service_registry_for_core = service_registry.clone();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -153,13 +355,23 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .manage(process_mgr)
         .manage(settings_mgr)
+        .manage(supervisor)
+        .manage(bridge)
+        .manage(service_registry)
         .invoke_handler(tauri::generate_handler![
             get_services_status,
+            get_service_identity_status,
             unload_vram,
             cold_start_llm,
             toggle_pet,
             open_settings,
+            open_chat,
+            open_memory,
             get_settings,
+            get_public_settings,
+            set_secret,
+            clear_secret,
+            send_core_command,
             update_settings,
             scan_models,
             refresh_models,
@@ -176,6 +388,64 @@ pub fn run() {
                         .build(),
                 );
             }
+
+            // PR-007: one Rust-owned authenticated WebSocket to Core. The worker
+            // thread reconnects on its own; the WebView only sees lva://event.
+            bridge_for_events.attach_app(app.handle().clone());
+            bridge_for_events.start();
+            // PR-012: keep Core's bind attestation fresh.  Core expires a verdict
+            // through `revalidate_after`, so a one-shot report would let the
+            // control gate close on its own.
+            start_attestation_reporter(bridge_for_events.clone());
+
+            // v1.2.1 PR-007: Tauri owns the Core child handle and the runtime token.
+            // The token exists only inside the bootstrap pipe payload; it is never
+            // written to argv, env, disk or the WebView. Spawning happens off the UI
+            // thread so a slow model load cannot delay the pet window.
+            std::thread::spawn(move || {
+                let workspace_root = paths::get_app_dir();
+                let python_path = workspace_root
+                    .join(".venv")
+                    .join("Scripts")
+                    .join("python.exe");
+                let core_supervisor = CoreSupervisor::new(
+                    (*supervisor_for_core).clone(),
+                    python_path,
+                    workspace_root,
+                );
+                match core_supervisor.spawn_core(Duration::from_secs(20)) {
+                    Ok(instance) => {
+                        log::info!(
+                            "[Core] LVA Core READY on port {} (runtime_instance_id={})",
+                            instance.port, instance.runtime_instance_id
+                        );
+                        // PR-008: the READY handshake is what turns an observed
+                        // process into an identified, ready service.
+                        service_registry_for_core.observe(
+                            "lva_core",
+                            service_registry::Readiness::Ready,
+                            supervisor::ProcessOwnership::Spawned,
+                            &instance.runtime_instance_id,
+                            None,
+                            Some(instance.port),
+                        );
+                        bridge_for_core.set_instance(instance);
+                    }
+                    Err(e) => {
+                        eprintln!("[Core] Failed to start LVA Core: {}", e);
+                        service_registry_for_core.observe(
+                            "lva_core",
+                            service_registry::Readiness::Exited,
+                            supervisor::ProcessOwnership::Spawned,
+                            "lva_core:failed",
+                            None,
+                            None,
+                        );
+                        service_registry_for_core
+                            .record_crash("lva_core", service_registry::CrashReason::HandshakeFailed);
+                    }
+                }
+            });
 
             // Setup Tray with process_mgr and settings_mgr
             tray::setup_tray(app.handle(), pm_clone, sm_clone)?;

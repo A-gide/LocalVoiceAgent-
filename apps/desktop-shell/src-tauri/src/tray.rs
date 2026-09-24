@@ -45,31 +45,31 @@ pub fn setup_tray(
     settings_mgr: Arc<SettingsManager>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let toggle_i = MenuItem::with_id(app, "toggle", "显示/休眠宠物 (Alt+V / Ctrl+Space)", true, None::<&str>)?;
+    let chat_i = MenuItem::with_id(app, "chat", "打开对话 (Chat)", true, None::<&str>)?;
+    let memory_i = MenuItem::with_id(app, "memory", "记忆管理 (Journal v2)", true, None::<&str>)?;
     let select_model_i = MenuItem::with_id(app, "select_model", "选择/切换 LLM 模型 (Model)", true, None::<&str>)?;
     let settings_i = MenuItem::with_id(app, "settings", "设置与控制面板 (Settings)", true, None::<&str>)?;
     let sep1 = PredefinedMenuItem::separator(app)?;
     let live_i = MenuItem::with_id(app, "live", "唤醒宠物 (加载 Live2D)", true, None::<&str>)?;
     let screenpipe_i = MenuItem::with_id(app, "screenpipe", "被动记录 (Screenpipe) 状态", true, None::<&str>)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
-    let unload_i = MenuItem::with_id(app, "unload_vram", "释放显存 (卸载 LLM 腾出 ~4.9GB)", true, None::<&str>)?;
-    let start_llm_i = MenuItem::with_id(app, "start_llm", "冷启装载 LLM 模型", true, None::<&str>)?;
     let status_i = MenuItem::with_id(app, "status", "服务状态检测", true, None::<&str>)?;
     let glass_i = MenuItem::with_id(app, "toggle_glass", "切换显示风格 (透明 / 玻璃卡片)", true, None::<&str>)?;
     let sep3 = PredefinedMenuItem::separator(app)?;
-    let quit_i = MenuItem::with_id(app, "quit", "退出 (关闭全部进程)", true, None::<&str>)?;
+    let quit_i = MenuItem::with_id(app, "quit", "退出 (关闭应用)", true, None::<&str>)?;
 
     let menu = Menu::with_items(
         app,
         &[
             &toggle_i,
+            &chat_i,
+            &memory_i,
             &select_model_i,
             &settings_i,
             &sep1,
             &live_i,
             &screenpipe_i,
             &sep2,
-            &unload_i,
-            &start_llm_i,
             &status_i,
             &glass_i,
             &sep3,
@@ -91,11 +91,14 @@ pub fn setup_tray(
                 "toggle" => {
                     toggle_pet_window(app, &sm_menu);
                 }
+                "chat" => {
+                    open_chat_window(app);
+                }
+                "memory" => {
+                    open_memory_window(app);
+                }
                 "select_model" => {
                     open_settings_window(app);
-                    if let Some(w) = app.get_webview_window("settings") {
-                        let _ = w.eval("if (window.switchTab) window.switchTab('llm');");
-                    }
                 }
                 "settings" => {
                     open_settings_window(app);
@@ -106,61 +109,29 @@ pub fn setup_tray(
                 "screenpipe" => {
                     let is_up = ProcessManager::is_port_listening(3030);
                     let status_msg = if is_up {
-                        "【Screenpipe 被动记录系统】\n\n状态：运行中 (端口 3030 监听中)\n模式：后台被动捕获 (OCR/Window Context)\n数据存储：screenpipe-data/".to_string()
+                        "【Screenpipe 捕获系统】\n\n状态：运行中 (端口 3030 监听中)\n模式：后台被动捕获\n数据存储：screenpipe-data/".to_string()
                     } else {
-                        "【Screenpipe 被动记录系统】\n\n状态：未运行 (端口 3030 未监听)\n提示：请在设置面板中启动或检查配置。".to_string()
+                        "【Screenpipe 捕获系统】\n\n状态：未运行 (端口 3030 未监听)\n提示：可通过设置或外部实例启动。".to_string()
                     };
                     std::thread::spawn(move || {
                         show_native_message("Screenpipe 状态", &status_msg, !is_up);
                     });
                 }
-                "unload_vram" => {
-                    let pm_c = pm.clone();
-                    std::thread::spawn(move || {
-                        match pm_c.unload_vram() {
-                            Ok(msg) => {
-                                show_native_message("显存释放成功", &format!("{}\n已腾出 ~4.9GB 独立显存供其他任务使用。", msg), false);
-                            }
-                            Err(e) => {
-                                show_native_message("释放显存失败", &format!("卸载过程发生错误：{}", e), true);
-                            }
-                        }
-                    });
-                }
-                "start_llm" => {
-                    let pm_c = pm.clone();
-                    std::thread::spawn(move || {
-                        match pm_c.cold_start_llm() {
-                            Ok(t) => {
-                                show_native_message("LLM 启动就绪", &format!("本地 LLM 服务就绪！耗时 {:.2} 秒。\n端口: 1234 (已加载到 GPU 显存)", t), false);
-                            }
-                            Err(e) => {
-                                show_native_message("LLM 启动失败", &format!("冷启动失败：{}", e), true);
-                            }
-                        }
-                    });
-                }
                 "status" => {
                     let st = pm.get_status();
-                    let llama_str = if st.llama_server.is_running {
-                        format!("运行中 (PID: {:?})", st.llama_server.pid.unwrap_or(0))
+                    let hub_str = if st.llama_server.is_running {
+                        format!("运行中 (端口: {})", st.llama_server.port)
                     } else {
-                        "未运行 (显存已释放)".to_string()
+                        "未连接 / 离线".to_string()
                     };
                     let screenpipe_str = if st.screenpipe.is_running {
-                        format!("运行中 (PID: {:?})", st.screenpipe.pid.unwrap_or(0))
+                        "运行中 (端口: 3030)".to_string()
                     } else {
                         "未运行".to_string()
                     };
-                    let vtuber_str = if st.open_llm_vtuber.is_running {
-                        format!("运行中 (PID: {:?})", st.open_llm_vtuber.pid.unwrap_or(0))
-                    } else {
-                        "未运行 (等待自动拉起)".to_string()
-                    };
-                    let switching_str = if st.is_switching_model { "正在切换中..." } else { "空闲就绪" };
                     let report = format!(
-                        "【LocalVoiceAgent 服务状态检测】\n\n• LLM 引擎 (端口 1234):\n   {}\n\n• Live2D 交互服务 (端口 12393):\n   {}\n\n• Screenpipe 记忆引擎 (端口 3030):\n   {}\n\n• 显存预估占用: {} MB\n• 模型状态: {}",
-                        llama_str, vtuber_str, screenpipe_str, st.vram_mb_estimated, switching_str
+                        "【LocalVoiceAgent 服务状态检测】\n\n• llama.cpp-hub 模型服务:\n   {}\n\n• Screenpipe 记忆捕获:\n   {}\n\n• 架构模式: 单一 Conversation Authority (LVA Core)",
+                        hub_str, screenpipe_str
                     );
                     std::thread::spawn(move || {
                         show_native_message("LocalVoiceAgent 服务检测", &report, false);
@@ -188,7 +159,7 @@ pub fn setup_tray(
     Ok(())
 }
 
-/// M2: Open Settings Window with "Destroy-On-Close" lifecycle
+/// Open Settings Window with single-page app index.html auto-routing
 pub fn open_settings_window(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("settings") {
         let _ = w.show();
@@ -199,10 +170,10 @@ pub fn open_settings_window(app: &AppHandle) {
     let builder = WebviewWindowBuilder::new(
         app,
         "settings",
-        WebviewUrl::App("settings.html".into()),
+        WebviewUrl::App("index.html".into()),
     )
     .title("LocalVoiceAgent 设置与控制面板")
-    .inner_size(680.0, 750.0)
+    .inner_size(800.0, 750.0)
     .resizable(true)
     .decorations(true)
     .always_on_top(false)
@@ -214,7 +185,6 @@ pub fn open_settings_window(app: &AppHandle) {
             w.on_window_event(move |event| {
                 if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                     api.prevent_close();
-                    // M2: Destroy immediately on close to prevent 100-200MB memory footprint
                     let _ = w_clone.destroy();
                     std::thread::spawn(|| {
                         std::thread::sleep(Duration::from_millis(150));
@@ -229,6 +199,94 @@ pub fn open_settings_window(app: &AppHandle) {
         Err(e) => {
             eprintln!("[Settings] Failed to open settings window: {}", e);
             show_native_message("打开设置失败", &format!("无法创建设置窗口：{}", e), true);
+        }
+    }
+}
+
+/// Open Chat Window with single-page app index.html auto-routing
+pub fn open_chat_window(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("chat") {
+        let _ = w.show();
+        let _ = w.set_focus();
+        return;
+    }
+
+    let builder = WebviewWindowBuilder::new(
+        app,
+        "chat",
+        WebviewUrl::App("index.html".into()),
+    )
+    .title("LocalVoiceAgent 对话记录")
+    .inner_size(560.0, 720.0)
+    .resizable(true)
+    .decorations(true)
+    .always_on_top(false)
+    .skip_taskbar(false);
+
+    match builder.build() {
+        Ok(w) => {
+            let w_clone = w.clone();
+            w.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = w_clone.destroy();
+                    std::thread::spawn(|| {
+                        std::thread::sleep(Duration::from_millis(150));
+                        #[cfg(windows)]
+                        trim_working_set();
+                    });
+                }
+            });
+            let _ = w.show();
+            let _ = w.set_focus();
+        }
+        Err(e) => {
+            eprintln!("[Chat] Failed to open chat window: {}", e);
+            show_native_message("打开对话窗口失败", &format!("无法创建对话窗口：{}", e), true);
+        }
+    }
+}
+
+/// Open Memory Window with single-page app index.html auto-routing
+pub fn open_memory_window(app: &AppHandle) {
+    if let Some(w) = app.get_webview_window("memory") {
+        let _ = w.show();
+        let _ = w.set_focus();
+        return;
+    }
+
+    let builder = WebviewWindowBuilder::new(
+        app,
+        "memory",
+        WebviewUrl::App("index.html".into()),
+    )
+    .title("LocalVoiceAgent 长期记忆管理 (Journal v2)")
+    .inner_size(780.0, 720.0)
+    .resizable(true)
+    .decorations(true)
+    .always_on_top(false)
+    .skip_taskbar(false);
+
+    match builder.build() {
+        Ok(w) => {
+            let w_clone = w.clone();
+            w.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = w_clone.destroy();
+                    std::thread::spawn(|| {
+                        std::thread::sleep(Duration::from_millis(150));
+                        #[cfg(windows)]
+                        trim_working_set();
+                    });
+                }
+            });
+            let _ = w.show();
+            let _ = w.set_focus();
+        }
+        Err(e) => {
+            eprintln!("[Memory] Failed to open memory window: {}", e);
+            show_native_message("打开记忆窗口失败", &format!("无法创建记忆窗口：{}", e), true);
         }
     }
 }
@@ -284,27 +342,10 @@ pub fn show_or_create_pet_window(app: &AppHandle) -> f64 {
         return (t0.elapsed().as_secs_f64() * 1000.0).round();
     }
 
-    let is_vtuber_ready = ProcessManager::is_port_listening(12393);
-    if !is_vtuber_ready {
-        if let Some(pm) = app.try_state::<Arc<ProcessManager>>() {
-            let pm_c = pm.inner().clone();
-            std::thread::spawn(move || {
-                let _ = pm_c.ensure_service_running("open_llm_vtuber");
-            });
-        }
-    }
-
-    let url = if is_vtuber_ready {
-        WebviewUrl::External("http://127.0.0.1:12393/?mode=pet".parse().unwrap())
-    } else {
-        WebviewUrl::App("index.html".into())
-    };
-
-    // Dynamic rebuild
     let builder = WebviewWindowBuilder::new(
         app,
         "main",
-        url,
+        WebviewUrl::App("index.html".into()),
     )
     .title("LocalVoiceAgent Pet")
     .inner_size(360.0, 520.0)

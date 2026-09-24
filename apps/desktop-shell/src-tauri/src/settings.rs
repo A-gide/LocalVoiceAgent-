@@ -12,6 +12,39 @@ pub struct GgufModelInfo {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PublicAppSettings {
+    pub llm_mode: String,
+    pub local_gguf_path: String,
+    pub cloud_provider: String,
+    pub cloud_base_url: String,
+    pub cloud_api_key_configured: bool,
+    pub cloud_model: String,
+
+    pub asr_provider: String,
+    pub asr_base_url: String,
+    pub asr_api_key_configured: bool,
+    pub asr_model: String,
+
+    pub tts_provider: String,
+    pub tts_base_url: String,
+    pub tts_api_key_configured: bool,
+    pub tts_model: String,
+    pub tts_voice: String,
+
+    pub active_character: String,
+    pub idle_vram_release_mins: u32,
+    pub pet_dormancy_mode: bool,
+    /// Monotonic settings aggregate revision (PR-004 L1173 / plan L397).
+    ///
+    /// Lives on the Rust public settings DTO -- deliberately **not** in the global
+    /// RuntimeState CAS, because secrets are owned by the Rust settings/OS
+    /// protection layer (plan L293).  A write that carries a stale revision is
+    /// rejected as `STALE_REVISION`, so concurrent edits cannot silently clobber
+    /// each other while heartbeat traffic leaves this value untouched.
+    pub settings_revision: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppSettings {
     pub llm_mode: String, // "local" or "cloud"
     pub local_gguf_path: String,
@@ -47,7 +80,7 @@ impl Default for AppSettings {
             cloud_model: "deepseek-chat".to_string(),
 
             asr_provider: "local".to_string(),
-            asr_base_url: "http://127.0.0.1:12393/v1/audio/transcriptions".to_string(),
+            asr_base_url: "http://127.0.0.1:8765/api/asr".to_string(),
             asr_api_key: String::new(),
             asr_model: "whisper-1".to_string(),
 
@@ -93,19 +126,85 @@ pub struct SettingsManager {
     config_path: PathBuf,
     settings: RwLock<AppSettings>,
     model_cache: RwLock<Vec<GgufModelInfo>>,
+    /// Settings aggregate revision (PR-004).  Bumped by every write that reaches
+    /// this manager; read by `get_public_settings`; compared by
+    /// [`SettingsManager::check_revision`].  Heartbeat traffic never touches it.
+    settings_revision: std::sync::atomic::AtomicU64,
 }
 
 impl SettingsManager {
+    /// Construct a manager bound to an explicit config path.
+    ///
+    /// Production always uses [`SettingsManager::new`], which resolves the path
+    /// through `paths::get_settings_json_path()`.  This constructor exists so a
+    /// test can point the manager at an isolated temporary directory instead of
+    /// mutating the real per-user runtime config root.
+    pub fn with_config_path(config_path: PathBuf) -> Self {
+        if let Some(parent) = config_path.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let sm = Self {
+            config_path,
+            settings: RwLock::new(AppSettings::default()),
+            model_cache: RwLock::new(Vec::new()),
+            settings_revision: std::sync::atomic::AtomicU64::new(0),
+        };
+        sm.load_from_disk();
+        sm
+    }
+
     pub fn new() -> Self {
+        // PR-003: import any legacy in-repo runtime config into the per-user root
+        // before the settings path is resolved, then report what happened in a
+        // redacted form.  The legacy files themselves are left untouched.
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(exe_dir) = exe.parent() {
+                let report = crate::paths::migrate_legacy_runtime_config(exe_dir);
+                for entry in &report {
+                    log::info!("[SettingsManager] config migration: {}", entry.to_redacted_line());
+                }
+            }
+        }
         let config_path = crate::paths::get_settings_json_path();
         log::info!("[SettingsManager] Loaded settings from: {:?}", config_path);
         let sm = Self {
             config_path,
             settings: RwLock::new(AppSettings::default()),
             model_cache: RwLock::new(Vec::new()),
+            settings_revision: std::sync::atomic::AtomicU64::new(0),
         };
         sm.load_from_disk();
         sm
+    }
+
+    /// Current settings aggregate revision.
+    pub fn settings_revision(&self) -> u64 {
+        self.settings_revision.load(std::sync::atomic::Ordering::SeqCst)
+    }
+
+    /// Compare-and-set guard for a settings write (PR-004 acceptance: a concurrent
+    /// write can return `STALE_REVISION`).
+    ///
+    /// `expected` of `None` means "the caller did not supply a revision", which is
+    /// the documented behaviour for a first-time write and is accepted.  A supplied
+    /// revision that no longer matches the current one is rejected, and the caller
+    /// must re-read before retrying.
+    pub fn check_revision(&self, expected: Option<u64>) -> Result<(), String> {
+        match expected {
+            None => Ok(()),
+            Some(exp) if exp == self.settings_revision() => Ok(()),
+            Some(exp) => Err(format!(
+                "STALE_REVISION: expected settings_revision {} but current is {}",
+                exp,
+                self.settings_revision()
+            )),
+        }
+    }
+
+    /// Bump the settings revision after a successful write.
+    fn bump_settings_revision(&self) {
+        self.settings_revision
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
 
     /// S2: Start model scanner on a background thread to prevent blocking main startup thread
@@ -218,12 +317,76 @@ impl SettingsManager {
         self.settings.read().unwrap().clone()
     }
 
+    pub fn get_public_settings(&self) -> PublicAppSettings {
+        let s = self.settings.read().unwrap();
+        PublicAppSettings {
+            llm_mode: s.llm_mode.clone(),
+            local_gguf_path: s.local_gguf_path.clone(),
+            cloud_provider: s.cloud_provider.clone(),
+            cloud_base_url: s.cloud_base_url.clone(),
+            cloud_api_key_configured: !s.cloud_api_key.is_empty(),
+            cloud_model: s.cloud_model.clone(),
+
+            asr_provider: s.asr_provider.clone(),
+            asr_base_url: s.asr_base_url.clone(),
+            asr_api_key_configured: !s.asr_api_key.is_empty(),
+            asr_model: s.asr_model.clone(),
+
+            tts_provider: s.tts_provider.clone(),
+            tts_base_url: s.tts_base_url.clone(),
+            tts_api_key_configured: !s.tts_api_key.is_empty(),
+            tts_model: s.tts_model.clone(),
+            tts_voice: s.tts_voice.clone(),
+
+            active_character: s.active_character.clone(),
+            idle_vram_release_mins: s.idle_vram_release_mins,
+            pet_dormancy_mode: s.pet_dormancy_mode,
+            settings_revision: self.settings_revision(),
+        }
+    }
+
+    pub fn set_secret(&self, secret_type: &str, secret_value: &str) -> Result<(), String> {
+        {
+            let mut s = self.settings.write().unwrap();
+            match secret_type {
+                "cloud_api_key" => s.cloud_api_key = secret_value.to_string(),
+                "asr_api_key" => s.asr_api_key = secret_value.to_string(),
+                "tts_api_key" => s.tts_api_key = secret_value.to_string(),
+                _ => return Err(format!("Unknown secret type '{}'", secret_type)),
+            }
+        }
+        let result = self.save_to_disk();
+        if result.is_ok() {
+            // A write that reached disk advances the settings aggregate revision.
+            self.bump_settings_revision();
+        }
+        result
+    }
+
+    pub fn clear_secret(&self, secret_type: &str) -> Result<(), String> {
+        self.set_secret(secret_type, "")
+    }
+
     pub fn update_settings(&self, new_settings: AppSettings) -> Result<(), String> {
         {
             let mut s = self.settings.write().unwrap();
-            *s = new_settings;
+            let mut updated = new_settings;
+            if updated.cloud_api_key.is_empty() {
+                updated.cloud_api_key = s.cloud_api_key.clone();
+            }
+            if updated.asr_api_key.is_empty() {
+                updated.asr_api_key = s.asr_api_key.clone();
+            }
+            if updated.tts_api_key.is_empty() {
+                updated.tts_api_key = s.tts_api_key.clone();
+            }
+            *s = updated;
         }
-        self.save_to_disk()
+        let result = self.save_to_disk();
+        if result.is_ok() {
+            self.bump_settings_revision();
+        }
+        result
     }
 
     /// S2: Recursively scan local models with max_depth <= 3
@@ -274,5 +437,111 @@ impl SettingsManager {
 
     pub fn get_cached_models(&self) -> Vec<GgufModelInfo> {
         self.model_cache.read().unwrap().clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// An isolated manager writing into its own temp directory.
+    ///
+    /// Never touch the real per-user runtime config root from a test: the test
+    /// process may not be allowed to write there, and it would mutate the user's
+    /// actual settings.
+    fn isolated_manager(tag: &str) -> SettingsManager {
+        let dir = std::env::temp_dir().join(format!(
+            "lva-settings-test-{}-{}",
+            tag,
+            std::process::id()
+        ));
+        let _ = fs::create_dir_all(&dir);
+        SettingsManager::with_config_path(dir.join("settings.json"))
+    }
+
+    // ---------------------------------------------------- PR-004 secret boundary
+    #[test]
+    fn public_dto_has_no_secret_or_ciphertext_field() {
+        // Serialize the public DTO and prove no key material can cross the boundary.
+        let dto = PublicAppSettings {
+            llm_mode: "hub".into(),
+            local_gguf_path: String::new(),
+            cloud_provider: "deepseek".into(),
+            cloud_base_url: "https://api.deepseek.com/v1".into(),
+            cloud_api_key_configured: true,
+            cloud_model: "deepseek-chat".into(),
+            asr_provider: "local".into(),
+            asr_base_url: String::new(),
+            asr_api_key_configured: false,
+            asr_model: "sensevoice".into(),
+            tts_provider: "local".into(),
+            tts_base_url: String::new(),
+            tts_api_key_configured: false,
+            tts_model: "melotts".into(),
+            tts_voice: "zh_en".into(),
+            active_character: "conf.yaml".into(),
+            idle_vram_release_mins: 15,
+            pet_dormancy_mode: true,
+            settings_revision: 7,
+        };
+        let json = serde_json::to_string(&dto).expect("public DTO must serialize");
+        assert!(!json.contains("_enc"), "no ciphertext field may be serialized");
+        assert!(!json.contains("api_key\""), "no raw key field may be serialized");
+        assert!(json.contains("settings_revision"), "the revision must be published");
+        assert!(json.contains("cloud_api_key_configured"), "only the flag may cross");
+    }
+
+    #[test]
+    fn a_missing_expected_revision_is_accepted() {
+        let sm = isolated_manager("missing-rev");
+        assert!(sm.check_revision(None).is_ok());
+    }
+
+    #[test]
+    fn a_matching_revision_is_accepted_and_a_stale_one_is_rejected() {
+        let sm = isolated_manager("stale-rev");
+        let current = sm.settings_revision();
+        assert!(sm.check_revision(Some(current)).is_ok());
+        let err = sm
+            .check_revision(Some(current + 99))
+            .expect_err("a stale revision must be rejected");
+        assert!(err.contains("STALE_REVISION"), "error must name STALE_REVISION");
+    }
+
+    #[test]
+    fn a_settings_write_advances_the_revision() {
+        let sm = isolated_manager("advance-rev");
+        let before = sm.settings_revision();
+        sm.set_secret("cloud_api_key", "test-value-not-a-real-key")
+            .expect("set_secret should succeed");
+        assert_eq!(
+            sm.settings_revision(),
+            before + 1,
+            "a successful settings write must advance the revision"
+        );
+        sm.clear_secret("cloud_api_key").expect("clear_secret should succeed");
+        assert_eq!(sm.settings_revision(), before + 2);
+    }
+
+    #[test]
+    fn a_rejected_secret_write_does_not_advance_the_revision() {
+        let sm = isolated_manager("reject-rev");
+        let before = sm.settings_revision();
+        assert!(sm.set_secret("not_a_secret_type", "x").is_err());
+        assert_eq!(
+            sm.settings_revision(),
+            before,
+            "a failed write must not bump the revision"
+        );
+    }
+
+    #[test]
+    fn clearing_a_secret_leaves_it_unconfigured_in_the_public_dto() {
+        let sm = isolated_manager("clear-secret");
+        sm.set_secret("tts_api_key", "test-value-not-a-real-key")
+            .expect("set_secret should succeed");
+        assert!(sm.get_public_settings().tts_api_key_configured);
+        sm.clear_secret("tts_api_key").expect("clear_secret should succeed");
+        assert!(!sm.get_public_settings().tts_api_key_configured);
     }
 }

@@ -1,0 +1,4 @@
+# Failure artifacts are regenerable RED-suite output; never commit them.
+# Scrub guarantee is enforced by tests/red_v121/harness.py (ArtifactWriter).
+*
+!.gitignore

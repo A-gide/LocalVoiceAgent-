@@ -14,6 +14,7 @@ __pycache__/
 *$py.class
 .pytest_cache/
 pytest-cache-files-*/
+src/*.egg-info/
 .coverage
 htmlcov/
 
@@ -45,7 +46,13 @@ cache/
 
 # Large binaries, models, and executables
 models/
-tools/
+# 	ools/* rather than 	ools/: a bare directory exclusion stops git from
+# descending, so the negations below could never take effect.
+tools/*
+# The codegen sources are part of the deliverable, not build output.
+!tools/codegen-rust/
+!tools/codegen-rust/**
+tools/codegen-rust/target/
 *.gguf
 *.exe
 *.dll
@@ -55,3 +62,9 @@ tools/
 *.lib
 *.a
 !apps/desktop-shell/src-tauri/WebView2Loader.dll
+
+# User runtime configuration & secrets
+settings.json
+services.json
+user_profile.json
+

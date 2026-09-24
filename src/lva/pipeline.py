@@ -192,6 +192,12 @@ class VoiceCore:
         self._asr: dict[str, ASR.BaseEngine] = {}
         self.tts = TTS.load(tts_engine or C.TTS_ENGINE) if tts_engine != "none" else None
 
+        # PR-011: the Core reaches providers through a registry rather than calling
+        # the concrete clients directly.  The registry is injected by the owner
+        # (server.py wires the adapters); when it is absent the legacy direct path
+        # below still works, so this stays a thin adapter rather than a rewrite.
+        self.provider_registry = None
+
         self.vad = Vad(min_silence=0.45)
         # Barge-in needs a *fast* confirmation, not utterance-grade segmentation:
         # the segmentation VAD waits 0.25 s of speech before it reports anything,

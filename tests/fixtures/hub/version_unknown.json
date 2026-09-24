@@ -1,0 +1,4 @@
+{
+  "_note": "Sanitised fixture: a Hub whose version the pinned contract does not know. Must resolve to DEGRADED, never READY.",
+  "version": "0.10.0-rc1"
+}

@@ -1,10 +1,10 @@
-﻿# health-check.ps1 - Strictly follows MASTER_PROMPT.md Section 29
-# Checks: LM Studio, TTS, Open-LLM-VTuber, Screenpipe, MCP, VRAM, RAM, CPU, ports.
+# health-check.ps1 - Strictly follows Architecture Plan v1.2
+# Checks: llama.cpp-hub, LVA Core, Screenpipe, ASR/TTS models, Journal v2, Hardware, Ports.
 [CmdletBinding()]
 param(
     [string]$Root = "E:\AI\LocalVoiceAgent",
-    [int]$LlmPort = 1234,
-    [int]$VtuberPort = 12393,
+    [int]$HubPort = 8080,
+    [int]$CorePort = 8765,
     [int]$ScreenpipePort = 3030
 )
 
@@ -17,41 +17,41 @@ function Report($name, $status, $detail) {
     Write-Host ("{0,-5} {1,-20} {2}" -f $status, $name, $detail) -ForegroundColor $color
 }
 
-Write-Host "=== LocalVoiceAgent Health Check (MASTER_PROMPT) ==="
+Write-Host "=== LocalVoiceAgent Health Check (Architecture Plan v1.2) ==="
 
-# 1. LM Studio (Port 1234)
+# 1. llama.cpp-hub (Port 8080)
 try {
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    $models = Invoke-RestMethod -Uri "http://127.0.0.1:$LlmPort/v1/models" -TimeoutSec 5
+    $models = Invoke-RestMethod -Uri "http://127.0.0.1:$HubPort/v1/models" -TimeoutSec 5
     $sw.Stop()
-    $modelName = $models.data[0].id
-    Report "LM Studio LLM" "PASS" ("127.0.0.1:{0} | Model: {1} ({2}ms)" -f $LlmPort, $modelName, $sw.ElapsedMilliseconds)
+    $modelName = if ($models.data -and $models.data.Count -gt 0) { $models.data[0].id } else { "none loaded" }
+    Report "llama.cpp-hub" "PASS" ("127.0.0.1:{0} | Model: {1} ({2}ms)" -f $HubPort, $modelName, $sw.ElapsedMilliseconds)
 } catch {
-    Report "LM Studio LLM" "FAIL" ("No answer on 127.0.0.1:{0}" -f $LlmPort)
+    Report "llama.cpp-hub" "WARN" ("No answer on 127.0.0.1:{0} (external/adopted runtime)" -f $HubPort)
 }
 
 # 2. Screenpipe (Port 3030)
 try {
     $spHealth = Invoke-RestMethod -Uri "http://127.0.0.1:$ScreenpipePort/health" -TimeoutSec 5
     if ($spHealth.status -eq "healthy") {
-        Report "Screenpipe" "PASS" ("127.0.0.1:{0} | Status: {1} | Vision: {2}" -f $ScreenpipePort, $spHealth.status, $spHealth.frame_status)
+        Report "Screenpipe" "PASS" ("127.0.0.1:{0} | Status: {1}" -f $ScreenpipePort, $spHealth.status)
     } else {
         Report "Screenpipe" "WARN" ("Status: " + $spHealth.status)
     }
 } catch {
-    Report "Screenpipe" "FAIL" ("No answer on 127.0.0.1:{0}" -f $ScreenpipePort)
+    Report "Screenpipe" "WARN" ("No answer on 127.0.0.1:{0}" -f $ScreenpipePort)
 }
 
-# 3. Open-LLM-VTuber (Port 12393)
+# 3. LVA Core (Port 8765)
 try {
-    $tcp = Get-NetTCPConnection -State Listen -LocalPort $VtuberPort -ErrorAction SilentlyContinue
-    if ($tcp) {
-        Report "Open-LLM-VTuber" "PASS" ("127.0.0.1:{0} | Listening" -f $VtuberPort)
+    $coreHealth = Invoke-RestMethod -Uri "http://127.0.0.1:$CorePort/health" -TimeoutSec 5
+    if ($coreHealth.ok -or $coreHealth.mode) {
+        Report "LVA Core" "PASS" ("127.0.0.1:{0} | Mode: {1} | ASR: {2} | TTS: {3}" -f $CorePort, $coreHealth.mode, $coreHealth.asr.engine, $coreHealth.tts)
     } else {
-        Report "Open-LLM-VTuber" "FAIL" ("Port {0} not open" -f $VtuberPort)
+        Report "LVA Core" "WARN" ("Mode: " + $coreHealth.mode)
     }
 } catch {
-    Report "Open-LLM-VTuber" "FAIL" ("Port {0} error" -f $VtuberPort)
+    Report "LVA Core" "WARN" ("Port {0} not listening" -f $CorePort)
 }
 
 # 4. ASR & TTS Models
@@ -105,7 +105,7 @@ $cpuLoad = (Get-CimInstance Win32_Processor | Measure-Object -Property LoadPerce
 Report "CPU Load" "PASS" ("{0}% utilization (Intel Core i9-13980HX)" -f $cpuLoad)
 
 # 7. Ports & Privacy (Ensure strictly 127.0.0.1, no 0.0.0.0)
-$allPorts = @($LlmPort, $VtuberPort, $ScreenpipePort)
+$allPorts = @($HubPort, $CorePort, $ScreenpipePort)
 $wildcards = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue |
     Where-Object { ($allPorts -contains $_.LocalPort) -and ($_.LocalAddress -eq "0.0.0.0") }
 if ($wildcards) {

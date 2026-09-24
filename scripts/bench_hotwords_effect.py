@@ -1,4 +1,4 @@
-﻿"""
+"""
 ASR Hotwords Empirical Controlled Benchmark (SenseVoice + sherpa-onnx)
 Compares recognition accuracy and character error rate (CER) between:
 1. Baseline without hotwords
@@ -39,7 +39,11 @@ hw_file = models_dir / "hotwords.txt"
 hw_file.write_text("\n".join(sorted(hotwords)), encoding="utf-8")
 print(f"Generated unified hotwords file at {hw_file} ({len(hotwords)} terms)")
 
-from src.open_llm_vtuber.memory_router import correct_scientific_terminology
+from lva.vocab import correct
+
+def correct_scientific_terminology(text: str):
+    res = correct(text)
+    return res.corrected, res.applied
 
 def build_engine(hw_path="", hw_score=1.5):
     feat_cfg = FeatureExtractorConfig(sampling_rate=16000, feature_dim=80)

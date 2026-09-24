@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "localvoiceagent"
+version = "0.2.0"
+description = "LocalVoiceAgent: High-performance, privacy-first local voice companion"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+license = { text = "MIT" }
+authors = [{ name = "LocalVoiceAgent Contributors" }]
+dependencies = [
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "pydantic>=2.6.0",
+    "python-multipart>=0.0.9",
+    "pypinyin==0.55.0",
+    "numpy>=1.24.0",
+    "sounddevice>=0.4.6",
+    "sherpa-onnx>=1.10.0",
+    "sherpa-onnx-core==1.13.8",
+    "httpx>=0.27.0",
+    "websockets>=12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+audio-test = [
+    "soundcard==0.4.6",
+]
+
+[dependency-groups]
+lint = [
+    "ruff==0.16.8",
+]
+
+[tool.ruff]
+target-version = "py311"
+include = ["src/lva/**/*.py", "tests/run_groups.py"]
+
+[tool.ruff.lint]
+# PR-002 starts with a stable syntax/import-placement floor. Existing F-series
+# debt is not silently auto-fixed as part of packaging.
+select = ["E4", "E7", "E9"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["lva*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+testpaths = ["tests", "scripts"]
+python_files = ["test_*.py", "*_test.py"]

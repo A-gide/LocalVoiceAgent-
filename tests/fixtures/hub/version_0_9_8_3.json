@@ -1,0 +1,5 @@
+{
+  "_note": "Sanitised fixture: /api/sys/version as observed on the pinned upstream commit. No host, no account, no path.",
+  "_source": "plan L571 pinned fixture; reviewed upstream commit a9cf12809e8243ff0b820abda1a24934d4eb7026",
+  "version": "0.9.8.3"
+}

@@ -1,0 +1,55 @@
+{
+  "schema": "lva-baseline/1",
+  "label": "b0",
+  "recorded_at_utc": "2026-09-23T09:00:00Z",
+  "source": "partial: scripts/soak_report.json (2.01s run) + benchmarks/acceptance-results.json; no live device capture",
+  "profile": {
+    "llm_profile": "Spark-X2.5-4B Q8",
+    "llm_context": 8192,
+    "asr_device": "SenseVoice CPU",
+    "tts_device": "MeloTTS/sherpa-onnx CPU",
+    "live_sessions": 1
+  },
+  "machine": {
+    "os": "Windows 11 build 26200",
+    "cpu": "Intel Core i9-13980HX",
+    "gpu": "NVIDIA RTX 4060 Laptop 8GB",
+    "ram_gb": 32,
+    "python": "3.11.15"
+  },
+  "metrics": {
+    "simulated_speech_onset_to_silence_p95_ms": null,
+    "simulated_speech_onset_to_silence_p99_ms": null,
+    "interrupt_commit_to_stop_request_p95_ms": 0.11,
+    "audio_callback_duration_p99_ms": null,
+    "standby_cpu_p50_percent": null,
+    "standby_cpu_p95_percent": null,
+    "rss_warmup_mb": 37.58,
+    "vram_peak_gb": null
+  },
+  "unmeasured_metrics": [
+    "simulated_speech_onset_to_silence_p95_ms",
+    "simulated_speech_onset_to_silence_p99_ms",
+    "audio_callback_duration_p99_ms",
+    "standby_cpu_p50_percent",
+    "standby_cpu_p95_percent",
+    "vram_peak_gb"
+  ],
+  "gates": {
+    "simulated_speech_onset_to_silence": "P95 <= min(250ms, B0_P95 * 1.10); P99 <= 400ms",
+    "physical_onset_to_acoustic_silence": "P95 <= min(250ms, B0_P95 * 1.10); P99 <= 400ms (100 valid samples)",
+    "interrupt_commit_to_stop_request": "P95 <= 20ms",
+    "audio_callback_duration": "P99 < 1ms",
+    "standby_cpu": "record P50/P95; P95 must not exceed B0 * 1.10",
+    "rss_12h": "after warm-up < max(200MB, 10%); slope must not rise monotonically",
+    "handles_threads_queues": "peak <= warm-up +10%; no unbounded backlog",
+    "journal": "no unrecovered lock; integrity_check=ok; import counts reconcile",
+    "vram_peak_gb": "reference profile < 7.5 GB"
+  },
+  "evidence": {
+    "soak_report": "scripts/soak_report.json (duration_s=2.01; gate_verdict=FAIL because the run is far shorter than 12h)",
+    "acceptance_latency_samples": 6,
+    "note": "B0 is INCOMPLETE: acoustic, VRAM and CPU gates need the reference device profile plus a 12h soak."
+  }
+}
+

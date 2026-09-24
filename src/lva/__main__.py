@@ -10,18 +10,94 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
+import os
 import sys
+import threading
 import time
 
 from . import config as C
 
 
+log = logging.getLogger("lva")
+
+
+def _shutdown_now(code: int, reason: str) -> None:
+    """Leave immediately: an orphaned Core must not linger on its loopback port."""
+    log.warning("%s; shutting down LVA Core", reason)
+    os._exit(code)
+
+
+def _watch_bootstrap_stdin() -> None:
+    """Exit when the bootstrap pipe reaches EOF (v1.2.1 Part 2.3-3).
+
+    Tauri writes one JSON line and then keeps the child's stdin handle open for the
+    life of the session, so the pipe is the authoritative orphan signal: EOF means
+    the parent is gone and this child must not outlive it. Draining stdin also makes
+    the handshake deterministic for a parent that closes the write side right after
+    writing the bootstrap payload.
+    """
+    if sys.stdin is None:
+        return
+
+    def _drain() -> None:
+        try:
+            while sys.stdin.readline():
+                pass
+        except Exception:  # noqa: BLE001 - EOF on a closed pipe is the normal path
+            pass
+        _shutdown_now(0, "Bootstrap stdin reached EOF (parent exited)")
+
+    threading.Thread(target=_drain, name="lva-bootstrap-stdin", daemon=True).start()
+
+
+def _parent_liveness_watchdog(parent_pid: int | None, poll_s: float = 1.0) -> None:
+    """Exit when the parent process disappears (v1.2.1 Part 2.3).
+
+    Independent second signal next to the bootstrap pipe. It uses only the PID that
+    arrived over the pipe (never argv, env or disk) and treats a live handle as
+    alive, so a recycled PID cannot cause a spurious exit.
+    """
+    if not parent_pid or parent_pid <= 0:
+        return
+
+    def _watch() -> None:
+        while True:
+            time.sleep(poll_s)
+            try:
+                os.kill(parent_pid, 0)  # Windows: OpenProcess; gone -> OSError
+            except OSError:
+                _shutdown_now(1, f"Parent process {parent_pid} is gone")
+
+    threading.Thread(target=_watch, name="lva-parent-watchdog", daemon=True).start()
+
+
 def cmd_serve(args) -> int:
     import uvicorn
+    from .server import auth_validator
+
+    if getattr(args, "bootstrap", False):
+        from .bootstrap import emit_lva_ready, read_bootstrap_from_stdin
+        boot = read_bootstrap_from_stdin()
+        auth_validator.set_token(boot.token)
+        _parent_liveness_watchdog(boot.parent_pid)
+
+        config = uvicorn.Config("lva.server:app", host=C.SERVICE_HOST, port=0,
+                                log_level=args.log_level, access_log=False)
+        server = uvicorn.Server(config)
+        sockets = [config.bind_socket()]
+        bound_port = sockets[0].getsockname()[1]
+        emit_lva_ready(bound_port, boot.nonce, boot.runtime_instance_id)
+        # Only now is the readiness line on the wire, so an already-closed bootstrap
+        # pipe can be treated as "the parent is gone" without racing the handshake.
+        _watch_bootstrap_stdin()
+        server.run(sockets=sockets)
+        return 0
 
     uvicorn.run("lva.server:app", host=C.SERVICE_HOST, port=args.port,
                 log_level=args.log_level, access_log=False)
     return 0
+
 
 
 def cmd_ask(args) -> int:
@@ -113,6 +189,7 @@ def main(argv: list[str] | None = None) -> int:
 
     s = sub.add_parser("serve", help="run the assistant server")
     s.add_argument("--port", type=int, default=C.SERVICE_PORT)
+    s.add_argument("--bootstrap", action="store_true", help="run in Tauri bootstrap mode with stdin pipe handshake")
     s.add_argument("--log-level", default="info")
     s.set_defaults(func=cmd_serve)
 

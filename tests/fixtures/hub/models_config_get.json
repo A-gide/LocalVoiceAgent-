@@ -1,0 +1,10 @@
+{
+  "_note": "Sanitised fixture: /api/models/config/get for one model. Unknown keys are preserved, not rewritten.",
+  "modelId": "example-model",
+  "cmd": "./llama-server",
+  "extraParams": ["--ctx-size", "8192"],
+  "llamaBinPathSelect": "default",
+  "vision": false,
+  "device": "CUDA0",
+  "futureUnknownKey": {"kept": true}
+}

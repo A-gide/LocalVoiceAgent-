@@ -27,8 +27,12 @@ pub fn is_directory_writable(dir: &Path) -> bool {
 ///    AND the executable directory MUST be writable!
 /// 3. Development / Test repository hierarchy:
 ///    Walk up parent directories (up to 5 levels) to check for `services.json` in workspace root.
-/// 4. Standard User AppData directory:
-///    `%APPDATA%\LocalVoiceAgent`.
+/// 4. Standard per-user runtime config root (PR-003 target):
+///    `%LOCALAPPDATA%\LocalVoiceAgent`, falling back to `%APPDATA%\LocalVoiceAgent`.
+///
+/// PR-003 boundary: user configuration belongs in the per-user runtime config root,
+/// not in the repository.  A legacy in-repo `settings.json`/`services.json` is
+/// imported once by [`migrate_legacy_runtime_config`] and never auto-deleted.
 pub fn get_app_dir() -> PathBuf {
     // 1. Env var override
     if let Ok(env_root) = std::env::var("LVA_ROOT") {
@@ -69,9 +73,12 @@ pub fn get_app_dir() -> PathBuf {
         }
     }
 
-    // 4. Fallback to %APPDATA%\LocalVoiceAgent
-    if let Ok(appdata) = std::env::var("APPDATA") {
-        let p = PathBuf::from(appdata).join("LocalVoiceAgent");
+    // 4. Fallback to the per-user runtime config root.  %LOCALAPPDATA% is the
+    // frozen target (PR-003 L1161); %APPDATA% stays as a last-resort fallback for
+    // environments that do not define LOCALAPPDATA.
+    let base = std::env::var("LOCALAPPDATA").or_else(|_| std::env::var("APPDATA"));
+    if let Ok(base) = base {
+        let p = PathBuf::from(base).join("LocalVoiceAgent");
         if !p.exists() {
             let _ = fs::create_dir_all(&p);
         }
@@ -79,6 +86,75 @@ pub fn get_app_dir() -> PathBuf {
     }
 
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
+}
+
+/// One entry of the redacted migration report (PR-003 L1163).
+///
+/// Carries a file name and an outcome only -- never a path, never a value, so the
+/// report can be logged or attached to diagnostics without leaking anything.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MigrationEntry {
+    pub file: String,
+    pub outcome: MigrationOutcome,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MigrationOutcome {
+    /// Nothing to do: the runtime root already had this file.
+    AlreadyPresent,
+    /// Copied from the legacy location and the original was backed up.
+    Copied,
+    /// The legacy file existed but could not be read.
+    Failed,
+}
+
+impl MigrationEntry {
+    /// A single redacted line, safe for logs and diagnostic exports.
+    pub fn to_redacted_line(&self) -> String {
+        format!("{}: {:?}", self.file, self.outcome)
+    }
+}
+
+/// Import legacy in-repo runtime configuration into the per-user config root.
+///
+/// PR-003 steps: first-run copy/migrate; back up the original runtime file; emit a
+/// redacted migration report.  Rollback note: the legacy file is left in place
+/// (read-only import for one release) -- this function **never deletes** a user's
+/// own file, it only copies it and records what happened.
+pub fn migrate_legacy_runtime_config(legacy_dir: &Path) -> Vec<MigrationEntry> {
+    let target_dir = get_app_dir();
+    let mut report = Vec::new();
+
+    for file in ["settings.json", "services.json", "user_profile.json"] {
+        let target = target_dir.join(file);
+        if target.exists() {
+            report.push(MigrationEntry {
+                file: file.to_string(),
+                outcome: MigrationOutcome::AlreadyPresent,
+            });
+            continue;
+        }
+        let legacy = legacy_dir.join(file);
+        if !legacy.is_file() {
+            continue;
+        }
+        // Back up the original before importing it, so a failed migration can be
+        // diagnosed from the exact bytes that were present.
+        let backup = legacy.with_extension("json.migrated-backup");
+        let _ = fs::copy(&legacy, &backup);
+        match fs::copy(&legacy, &target) {
+            Ok(_) => report.push(MigrationEntry {
+                file: file.to_string(),
+                outcome: MigrationOutcome::Copied,
+            }),
+            Err(_) => report.push(MigrationEntry {
+                file: file.to_string(),
+                outcome: MigrationOutcome::Failed,
+            }),
+        }
+    }
+
+    report
 }
 
 pub fn get_services_json_path() -> PathBuf {

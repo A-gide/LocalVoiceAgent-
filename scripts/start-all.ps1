@@ -1,11 +1,17 @@
-﻿# start-all.ps1 - Strictly follows MASTER_PROMPT.md Section 29
+# start-all.ps1 - Strictly follows MASTER_PROMPT.md Section 29
 #
 # Sequence:
 #   1. Screenpipe (24/7 passive recording engine, port 3030)
-#   2. LM Studio / llama-server (port 1234)
-#   3. TTS service (sherpa-onnx MeloTTS integrated)
-#   4. Open-LLM-VTuber (Live Assistant shell, port 12393)
+#   2. llama.cpp-hub runtime backend (port 8080, external/adopted service)
+#   3. TTS service (sherpa-onnx MeloTTS integrated, in-process)
+#   4. LVA Core is NOT started here -- Tauri owns it (see below)
 #   5. health-check
+#
+# v1.2.1 note: LVA Core is a `Spawned` child of the Tauri shell, launched with a
+# one-shot pipe bootstrap handshake (token + nonce, ephemeral port).  Starting it
+# from this script would mean a fixed port and no token, which violates hard
+# constraint 5.  Launch the desktop shell instead; this script only brings up the
+# external services and then checks health.
 #
 [CmdletBinding()]
 param(
@@ -76,40 +82,25 @@ if ($spPort) {
     }
 }
 
-# ------------------------------------------------------------- 2. LM Studio / llama-server (port 1234)
-Say "Step 2: Checking LM Studio LLM backend (port 1234)..."
-$llmPort = Get-NetTCPConnection -State Listen -LocalPort 1234 -ErrorAction SilentlyContinue
-if ($llmPort) {
-    Say "LLM server already listening on 127.0.0.1:1234."
+# ------------------------------------------------------------- 2. llama.cpp-hub (port 8080)
+Say "Step 2: Checking llama.cpp-hub runtime backend (port 8080)..."
+$hubPort = Get-NetTCPConnection -State Listen -LocalPort 8080 -ErrorAction SilentlyContinue
+if ($hubPort) {
+    Say "llama.cpp-hub already listening on 127.0.0.1:8080."
 } else {
-    Say "Starting local llama-server on port 1234..."
-    & $py (Join-Path $Root "scripts\llm_serve.py") --start $Model --ctx $Ctx --ngl $Ngl
-    Wait-Port 1234 60 "llama-server" | Out-Null
+    Say "llama.cpp-hub not listening on port 8080 (External/Adopted service)." "WARN"
 }
 
-# ------------------------------------------------------------- 3. TTS
-Say "Step 3: Verifying TTS engine (sherpa-onnx MeloTTS)..."
-Say "TTS engine is configured locally on CPU (0MB VRAM footprint)."
+# ------------------------------------------------------------- 3. LVA Core (owned by Tauri)
+# Deliberately not started from here.  Core must be spawned by the Tauri shell so
+# it receives its token/nonce over the bootstrap pipe and binds an ephemeral
+# port; a standalone start would be unauthenticated on a well-known port.
+Say "Step 3: LVA Core is started by the Tauri desktop shell (bootstrap pipe handshake)."
+Say "        Launch apps/desktop-shell (lva-pet.exe) to bring Core up; skipping here." "INFO"
 
-# ------------------------------------------------------------- 4. Open-LLM-VTuber (port 12393)
-Say "Step 4: Checking Open-LLM-VTuber (Live Assistant Shell, port 12393)..."
-$vtuberPort = Get-NetTCPConnection -State Listen -LocalPort 12393 -ErrorAction SilentlyContinue
-if ($vtuberPort) {
-    Say "Open-LLM-VTuber already running on 127.0.0.1:12393."
-} else {
-    Say "Starting Open-LLM-VTuber..."
-    $vtuberDir = Join-Path $Root "apps\open-llm-vtuber"
-    $ffmpegBin = Join-Path $Root "apps\screenpipe\node_modules\@screenpipe\cli-win32-x64\bin"
-    $env:PYTHONPATH = $vtuberDir
-    $env:PATH = "$ffmpegBin;" + $env:PATH
-    $vtuberProc = Start-Process -FilePath $py -ArgumentList "run_server.py" -WorkingDirectory $vtuberDir -PassThru -WindowStyle Hidden -RedirectStandardOutput (Join-Path $logs "open_llm_vtuber_stdout.log") -RedirectStandardError (Join-Path $logs "open_llm_vtuber_stderr.log")
-    $pids["open_llm_vtuber"] = $vtuberProc.Id
-    Wait-Port 12393 30 "Open-LLM-VTuber" | Out-Null
-}
-
-# Save PIDs
+# Save PIDs (external services only; Core is tracked by the Tauri shell)
 $pids | ConvertTo-Json | Set-Content -Path $pidFile -Encoding UTF8
 
-# ------------------------------------------------------------- 5. Health Check
-Say "Step 5: Executing health-check..."
+# ------------------------------------------------------------- 4. Health Check
+Say "Step 4: Executing health-check..."
 & (Join-Path $Root "scripts\health-check.ps1")

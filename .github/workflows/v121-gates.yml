@@ -1,0 +1,112 @@
+name: v1.2.1 gates
+
+# The v1.2.1 conformance gates. Some later-slice tests remain RED: the
+# R03b contract work is closed, but the frozen v1.2.1 plan still raises the bar
+# (aggregate CAS, fail-closed auth, Core bootstrap wiring, I21/I22, Standby
+# capture semantics, Output Mute, Hub effective-bind attestation).
+#
+# This workflow is deliberately NOT masked with continue-on-error: a red run is
+# the honest signal that G0 is not yet met. Each group is tied to the fix slice
+# that is expected to turn it green.
+#
+#   red-v121        -> R03, R05, R06, R09, R10, R12, R13, R14
+#   harness         -> must stay green (instrument self-tests, hardware-free)
+#   acoustic-gate   -> hardware-free only; real devices live in wasapi-device.yml
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  red-v121:
+    name: v1.2.1 gap reproductions (expected RED)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.6"
+      - name: Install dependencies
+        shell: pwsh
+        run: uv sync --locked --extra dev --python 3.11
+
+      - name: Harness self-tests (must be green)
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe -B tests/run_groups.py harness
+
+      - name: v1.2.1 RED suite
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe -B tests/run_groups.py red-v121
+
+      - name: Upload redacted failure artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: red-v121-artifacts
+          path: tests/red_v121/_artifacts/
+          if-no-files-found: ignore
+
+  acoustic-gate-hosted:
+    name: Acoustic gate - hardware-free contract only
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.6"
+      - name: Install dependencies
+        shell: pwsh
+        run: uv sync --locked --extra dev --extra audio-test --python 3.11
+
+      # A hosted runner has no audio endpoint and nothing driving playback, so
+      # this job asserts the *contract* of the gate rather than any latency:
+      #   * the scaffold always writes a report,
+      #   * a hardware-free host degrades to UNAVAILABLE (never a crash),
+      #   * the no-playback guard fires instead of a meaningless 0 ms "OK".
+      # Real protocol A measurement requires a device and production playback
+      # wiring, and runs in wasapi-device.yml on a self-hosted runner.
+      - name: Hardware-free scaffold self-tests
+        shell: pwsh
+        run: .\.venv\Scripts\python.exe -B -m pytest tests/harness/test_wasapi_scaffold.py -q
+
+      - name: Synthetic guard (no device needed)
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -B benchmarks/wasapi_loopback.py --synthetic --samples 3 --playback-frames 4800 --t0-frame 0 --report synthetic-no-playback.json
+          if ($LASTEXITCODE -eq 0) { throw "guard failed: synthetic run without playback reported OK" }
+          .\.venv\Scripts\python.exe -B benchmarks/wasapi_loopback.py --synthetic --samples 3 --playback-frames 4800 --t0-frame 600 --report synthetic-ok.json
+          if ($LASTEXITCODE -ne 0) { throw "synthetic playback-then-silence should measure cleanly" }
+
+      - name: Device path must degrade cleanly (no crash, report always written)
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -B benchmarks/wasapi_loopback.py --samples 3 --playback-frames 4800 --report device-gate.json
+          $rc = $LASTEXITCODE
+          if (-not (Test-Path device-gate.json)) { throw "scaffold did not write a report on a hardware-free host" }
+          $report = Get-Content device-gate.json -Raw | ConvertFrom-Json
+          $report | ConvertTo-Json -Depth 6
+          if ($report.status -eq "OK") {
+            throw "status OK without any playback driving the device - the no-playback guard failed"
+          }
+          $allowed = @("UNAVAILABLE", "NO_PLAYBACK_DETECTED", "NO_SILENCE_DETECTED")
+          if ($allowed -notcontains $report.status) {
+            throw "unexpected status '$($report.status)' on a hardware-free host"
+          }
+          if ($rc -eq 0) { throw "non-OK status must not exit 0" }
+          Write-Host "OK: degraded to '$($report.status)' with an explicit reason and a written report."
+
+      - name: Upload acoustic reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: acoustic-reports-hosted
+          path: "*.json"
+          if-no-files-found: ignore

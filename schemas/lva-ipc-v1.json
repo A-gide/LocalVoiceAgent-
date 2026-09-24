@@ -1,0 +1,2372 @@
+{
+  "$defs": {
+    "ActivityState": {
+      "enum": [
+        "idle",
+        "listening",
+        "thinking",
+        "speaking"
+      ],
+      "title": "ActivityState",
+      "type": "string"
+    },
+    "AudioPlaybackSilencedPayload": {
+      "properties": {
+        "type": {
+          "const": "audio.playback_silenced",
+          "title": "Type",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TurnId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provider_epoch": {
+          "title": "Provider Epoch",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "provider_epoch"
+      ],
+      "title": "AudioPlaybackSilencedPayload",
+      "type": "object"
+    },
+    "AudioPlaybackStartedPayload": {
+      "properties": {
+        "type": {
+          "const": "audio.playback_started",
+          "title": "Type",
+          "type": "string"
+        },
+        "turn_id": {
+          "$ref": "#/$defs/TurnId"
+        },
+        "provider_epoch": {
+          "title": "Provider Epoch",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "turn_id",
+        "provider_epoch"
+      ],
+      "title": "AudioPlaybackStartedPayload",
+      "type": "object"
+    },
+    "AudioPlaybackStopRequestedPayload": {
+      "properties": {
+        "type": {
+          "const": "audio.playback_stop_requested",
+          "title": "Type",
+          "type": "string"
+        },
+        "turn_id": {
+          "$ref": "#/$defs/TurnId"
+        },
+        "provider_epoch": {
+          "title": "Provider Epoch",
+          "type": "integer"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "turn_id",
+        "provider_epoch",
+        "reason"
+      ],
+      "title": "AudioPlaybackStopRequestedPayload",
+      "type": "object"
+    },
+    "AudioUtteranceReadyPayload": {
+      "properties": {
+        "type": {
+          "const": "audio.utterance_ready",
+          "title": "Type",
+          "type": "string"
+        },
+        "turn_id": {
+          "$ref": "#/$defs/TurnId"
+        },
+        "raw_text": {
+          "title": "Raw Text",
+          "type": "string"
+        },
+        "corrected_text": {
+          "title": "Corrected Text",
+          "type": "string"
+        },
+        "domain": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Domain"
+        }
+      },
+      "required": [
+        "type",
+        "turn_id",
+        "raw_text",
+        "corrected_text"
+      ],
+      "title": "AudioUtteranceReadyPayload",
+      "type": "object"
+    },
+    "AudioVadEndedPayload": {
+      "properties": {
+        "type": {
+          "const": "audio.vad_ended",
+          "title": "Type",
+          "type": "string"
+        },
+        "duration_ms": {
+          "title": "Duration Ms",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "duration_ms"
+      ],
+      "title": "AudioVadEndedPayload",
+      "type": "object"
+    },
+    "AudioVadStartedPayload": {
+      "properties": {
+        "type": {
+          "const": "audio.vad_started",
+          "title": "Type",
+          "type": "string"
+        },
+        "timestamp_ms": {
+          "title": "Timestamp Ms",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "timestamp_ms"
+      ],
+      "title": "AudioVadStartedPayload",
+      "type": "object"
+    },
+    "CaptureAggregate": {
+      "properties": {
+        "core_mic_stopped": {
+          "default": true,
+          "title": "Core Mic Stopped",
+          "type": "boolean"
+        },
+        "managed_screenpipe_stopped": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Managed Screenpipe Stopped"
+        },
+        "external_screenpipe_detected": {
+          "default": false,
+          "title": "External Screenpipe Detected",
+          "type": "boolean"
+        }
+      },
+      "title": "CaptureAggregate",
+      "type": "object"
+    },
+    "CaptureState": {
+      "properties": {
+        "active": {
+          "default": false,
+          "title": "Active",
+          "type": "boolean"
+        },
+        "device_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device Name"
+        },
+        "frames_captured": {
+          "default": 0,
+          "title": "Frames Captured",
+          "type": "integer"
+        },
+        "sample_rate": {
+          "default": 16000,
+          "title": "Sample Rate",
+          "type": "integer"
+        }
+      },
+      "title": "CaptureState",
+      "type": "object"
+    },
+    "CommandEnvelope": {
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "command_id": {
+          "format": "uuid",
+          "title": "Command Id",
+          "type": "string"
+        },
+        "idempotency_key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idempotency Key"
+        },
+        "precondition": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "hub_binding": "#/$defs/HubBindingPrecondition",
+                  "memory_event": "#/$defs/MemoryEventPrecondition",
+                  "runtime_control": "#/$defs/RuntimeControlPrecondition",
+                  "settings": "#/$defs/SettingsPrecondition"
+                },
+                "propertyName": "aggregate"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/RuntimeControlPrecondition"
+                },
+                {
+                  "$ref": "#/$defs/HubBindingPrecondition"
+                },
+                {
+                  "$ref": "#/$defs/SettingsPrecondition"
+                },
+                {
+                  "$ref": "#/$defs/MemoryEventPrecondition"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Precondition"
+        },
+        "issued_at": {
+          "format": "date-time",
+          "title": "Issued At",
+          "type": "string"
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "payload": {
+          "discriminator": {
+            "mapping": {
+              "diagnostics.export_redacted": "#/$defs/DiagnosticsExportRedactedPayload",
+              "hub.attest_bind": "#/$defs/HubAttestBindPayload",
+              "hub.bind_model": "#/$defs/HubBindModelPayload",
+              "hub.refresh": "#/$defs/HubRefreshPayload",
+              "hub.sleep_bound_model": "#/$defs/HubSleepBoundModelPayload",
+              "memory.correct": "#/$defs/MemoryCorrectPayload",
+              "memory.hard_delete": "#/$defs/MemoryHardDeletePayload",
+              "memory.search": "#/$defs/MemorySearchPayload",
+              "runtime.get_snapshot": "#/$defs/RuntimeGetSnapshotPayload",
+              "runtime.restore_mode": "#/$defs/RuntimeRestoreModePayload",
+              "runtime.set_mode": "#/$defs/RuntimeSetModePayload",
+              "service.retry": "#/$defs/ServiceRetryPayload",
+              "settings.clear_secret": "#/$defs/SettingsClearSecretPayload",
+              "settings.set_secret": "#/$defs/SettingsSetSecretPayload",
+              "settings.update_public": "#/$defs/SettingsUpdatePublicPayload",
+              "turn.cancel": "#/$defs/TurnCancelPayload",
+              "turn.send_text": "#/$defs/TurnSendTextPayload"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RuntimeGetSnapshotPayload"
+            },
+            {
+              "$ref": "#/$defs/RuntimeSetModePayload"
+            },
+            {
+              "$ref": "#/$defs/RuntimeRestoreModePayload"
+            },
+            {
+              "$ref": "#/$defs/TurnSendTextPayload"
+            },
+            {
+              "$ref": "#/$defs/TurnCancelPayload"
+            },
+            {
+              "$ref": "#/$defs/HubRefreshPayload"
+            },
+            {
+              "$ref": "#/$defs/HubBindModelPayload"
+            },
+            {
+              "$ref": "#/$defs/HubSleepBoundModelPayload"
+            },
+            {
+              "$ref": "#/$defs/HubAttestBindPayload"
+            },
+            {
+              "$ref": "#/$defs/SettingsUpdatePublicPayload"
+            },
+            {
+              "$ref": "#/$defs/SettingsSetSecretPayload"
+            },
+            {
+              "$ref": "#/$defs/SettingsClearSecretPayload"
+            },
+            {
+              "$ref": "#/$defs/MemorySearchPayload"
+            },
+            {
+              "$ref": "#/$defs/MemoryCorrectPayload"
+            },
+            {
+              "$ref": "#/$defs/MemoryHardDeletePayload"
+            },
+            {
+              "$ref": "#/$defs/ServiceRetryPayload"
+            },
+            {
+              "$ref": "#/$defs/DiagnosticsExportRedactedPayload"
+            }
+          ],
+          "title": "Payload"
+        }
+      },
+      "required": [
+        "type",
+        "payload"
+      ],
+      "title": "CommandEnvelope",
+      "type": "object"
+    },
+    "CommandResult": {
+      "properties": {
+        "command_id": {
+          "format": "uuid",
+          "title": "Command Id",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "applied",
+            "rejected",
+            "duplicate"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "snapshot_version": {
+          "title": "Snapshot Version",
+          "type": "integer"
+        },
+        "revisions": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "title": "Revisions",
+          "type": "object"
+        },
+        "data": {
+          "anyOf": [
+            {},
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ErrorEnvelope"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "command_id",
+        "status",
+        "snapshot_version"
+      ],
+      "title": "CommandResult",
+      "type": "object"
+    },
+    "DiagnosticsExportRedactedPayload": {
+      "properties": {
+        "type": {
+          "const": "diagnostics.export_redacted",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "DiagnosticsExportRedactedPayload",
+      "type": "object"
+    },
+    "ErrorCode": {
+      "enum": [
+        "AUTH_REQUIRED",
+        "AUTH_FAILED",
+        "ORIGIN_REJECTED",
+        "PROTOCOL_MISMATCH",
+        "STALE_REVISION",
+        "DUPLICATE_COMMAND",
+        "INVALID_TRANSITION",
+        "PASSIVE_PROVIDER_FORBIDDEN",
+        "PRIVACY_UNVERIFIED",
+        "HUB_UNAVAILABLE",
+        "HUB_VERSION_UNSUPPORTED",
+        "HUB_CONTROL_UNSAFE",
+        "HUB_BIND_UNVERIFIED",
+        "PROFILE_REQUIRED",
+        "MODEL_CONFLICT_REQUIRES_CONFIRMATION",
+        "MODEL_LOAD_FAILED",
+        "PROVIDER_DISCONNECTED",
+        "TURN_CANCELLED",
+        "STALE_EFFECT_DROPPED",
+        "JOURNAL_BUSY",
+        "IMPORT_SCHEMA_UNSUPPORTED",
+        "MIGRATION_FAILED"
+      ],
+      "title": "ErrorCode",
+      "type": "string"
+    },
+    "ErrorEnvelope": {
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ErrorCode"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "retryable": {
+          "default": false,
+          "title": "Retryable",
+          "type": "boolean"
+        },
+        "severity": {
+          "default": "error",
+          "enum": [
+            "info",
+            "warning",
+            "error",
+            "fatal"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "component": {
+          "title": "Component",
+          "type": "string"
+        },
+        "correlation_id": {
+          "format": "uuid",
+          "title": "Correlation Id",
+          "type": "string"
+        },
+        "redacted_details": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Redacted Details"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "component",
+        "correlation_id"
+      ],
+      "title": "ErrorEnvelope",
+      "type": "object"
+    },
+    "ErrorRaisedPayload": {
+      "properties": {
+        "type": {
+          "const": "error.raised",
+          "title": "Type",
+          "type": "string"
+        },
+        "error": {
+          "$ref": "#/$defs/ErrorEnvelope"
+        }
+      },
+      "required": [
+        "type",
+        "error"
+      ],
+      "title": "ErrorRaisedPayload",
+      "type": "object"
+    },
+    "EventEnvelope": {
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "event_id": {
+          "format": "uuid",
+          "title": "Event Id",
+          "type": "string"
+        },
+        "sequence": {
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "runtime_instance_id": {
+          "format": "uuid",
+          "title": "Runtime Instance Id",
+          "type": "string"
+        },
+        "occurred_at": {
+          "format": "date-time",
+          "title": "Occurred At",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Id"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TurnId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "payload": {
+          "discriminator": {
+            "mapping": {
+              "audio.playback_silenced": "#/$defs/AudioPlaybackSilencedPayload",
+              "audio.playback_started": "#/$defs/AudioPlaybackStartedPayload",
+              "audio.playback_stop_requested": "#/$defs/AudioPlaybackStopRequestedPayload",
+              "audio.utterance_ready": "#/$defs/AudioUtteranceReadyPayload",
+              "audio.vad_ended": "#/$defs/AudioVadEndedPayload",
+              "audio.vad_started": "#/$defs/AudioVadStartedPayload",
+              "error.raised": "#/$defs/ErrorRaisedPayload",
+              "hub.binding_changed": "#/$defs/HubBindingChangedPayload",
+              "hub.operation_progress": "#/$defs/HubOperationProgressPayload",
+              "interrupt.committed": "#/$defs/InterruptCommittedPayload",
+              "interrupt.detected": "#/$defs/InterruptDetectedPayload",
+              "interrupt.settled": "#/$defs/InterruptSettledPayload",
+              "memory.committed": "#/$defs/MemoryCommittedPayload",
+              "memory.recall_completed": "#/$defs/MemoryRecallCompletedPayload",
+              "memory.revision_added": "#/$defs/MemoryRevisionAddedPayload",
+              "mode.changed": "#/$defs/ModeChangedPayload",
+              "privacy.scope_changed": "#/$defs/PrivacyScopeChangedPayload",
+              "provider.state_changed": "#/$defs/ProviderStateChangedPayload",
+              "runtime.snapshot": "#/$defs/RuntimeSnapshotPayload",
+              "service.state_changed": "#/$defs/ServiceStateChangedPayload",
+              "session.ended": "#/$defs/SessionEndedPayload",
+              "session.started": "#/$defs/SessionStartedPayload",
+              "turn.cancel_requested": "#/$defs/TurnCancelRequestedPayload",
+              "turn.cancelled": "#/$defs/TurnCancelledPayload",
+              "turn.completed": "#/$defs/TurnCompletedPayload",
+              "turn.started": "#/$defs/TurnStartedPayload"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/RuntimeSnapshotPayload"
+            },
+            {
+              "$ref": "#/$defs/ModeChangedPayload"
+            },
+            {
+              "$ref": "#/$defs/PrivacyScopeChangedPayload"
+            },
+            {
+              "$ref": "#/$defs/SessionStartedPayload"
+            },
+            {
+              "$ref": "#/$defs/SessionEndedPayload"
+            },
+            {
+              "$ref": "#/$defs/TurnStartedPayload"
+            },
+            {
+              "$ref": "#/$defs/TurnCancelRequestedPayload"
+            },
+            {
+              "$ref": "#/$defs/TurnCancelledPayload"
+            },
+            {
+              "$ref": "#/$defs/TurnCompletedPayload"
+            },
+            {
+              "$ref": "#/$defs/InterruptDetectedPayload"
+            },
+            {
+              "$ref": "#/$defs/InterruptCommittedPayload"
+            },
+            {
+              "$ref": "#/$defs/InterruptSettledPayload"
+            },
+            {
+              "$ref": "#/$defs/AudioVadStartedPayload"
+            },
+            {
+              "$ref": "#/$defs/AudioVadEndedPayload"
+            },
+            {
+              "$ref": "#/$defs/AudioUtteranceReadyPayload"
+            },
+            {
+              "$ref": "#/$defs/AudioPlaybackStartedPayload"
+            },
+            {
+              "$ref": "#/$defs/AudioPlaybackStopRequestedPayload"
+            },
+            {
+              "$ref": "#/$defs/AudioPlaybackSilencedPayload"
+            },
+            {
+              "$ref": "#/$defs/ProviderStateChangedPayload"
+            },
+            {
+              "$ref": "#/$defs/HubBindingChangedPayload"
+            },
+            {
+              "$ref": "#/$defs/HubOperationProgressPayload"
+            },
+            {
+              "$ref": "#/$defs/MemoryCommittedPayload"
+            },
+            {
+              "$ref": "#/$defs/MemoryRevisionAddedPayload"
+            },
+            {
+              "$ref": "#/$defs/MemoryRecallCompletedPayload"
+            },
+            {
+              "$ref": "#/$defs/ServiceStateChangedPayload"
+            },
+            {
+              "$ref": "#/$defs/ErrorRaisedPayload"
+            }
+          ],
+          "title": "Payload"
+        }
+      },
+      "required": [
+        "sequence",
+        "runtime_instance_id",
+        "source",
+        "type",
+        "payload"
+      ],
+      "title": "EventEnvelope",
+      "type": "object"
+    },
+    "FloorOwner": {
+      "enum": [
+        "user",
+        "agent",
+        "none"
+      ],
+      "title": "FloorOwner",
+      "type": "string"
+    },
+    "HubAttestBindPayload": {
+      "description": "An effective-bind verdict reported by the process authority (PR-012).\n\nDirection: this is an **inbound** command.  The Rust side observes the OS\nlistener table (plan L1256: the process authority produces the attestation;\nCore does not inspect Windows state), and reports the redacted verdict to Core\nover the existing authenticated WS.  Core then decides whether Hub control may\nrun at all (plan L665: only ``VERIFIED_LOOPBACK`` permits it).\n\nThe payload reuses the already-defined ``HubBindAttestation`` -- the same type\nthat travels to the WebView -- so there is exactly one verdict shape in the\ncontract rather than two that could drift apart.",
+      "properties": {
+        "type": {
+          "const": "hub.attest_bind",
+          "title": "Type",
+          "type": "string"
+        },
+        "attestation": {
+          "$ref": "#/$defs/HubBindAttestation"
+        }
+      },
+      "required": [
+        "type",
+        "attestation"
+      ],
+      "title": "HubAttestBindPayload",
+      "type": "object"
+    },
+    "HubBindAttestation": {
+      "description": "Redacted summary of the Hub effective-bind attestation (v1.2.1 §5.8).\n\nThis travels with ``RuntimeState`` into the WebView, so it carries only the\nverdict and coarse provenance -- never a PID, port, listener address,\nendpoint or credential.  The raw evidence stays on the Rust diagnostics\nsurface and is correlated by ``attestation_id`` only.",
+      "properties": {
+        "status": {
+          "enum": [
+            "VERIFIED_LOOPBACK",
+            "VERIFIED_NON_LOOPBACK",
+            "UNVERIFIED_BIND"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "reason_code": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HubBindReason"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "checked_at": {
+          "format": "date-time",
+          "title": "Checked At",
+          "type": "string"
+        },
+        "attestation_id": {
+          "title": "Attestation Id",
+          "type": "string"
+        },
+        "revalidate_after": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revalidate After"
+        }
+      },
+      "required": [
+        "status",
+        "checked_at",
+        "attestation_id"
+      ],
+      "title": "HubBindAttestation",
+      "type": "object"
+    },
+    "HubBindModelPayload": {
+      "properties": {
+        "type": {
+          "const": "hub.bind_model",
+          "title": "Type",
+          "type": "string"
+        },
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "force": {
+          "default": false,
+          "title": "Force",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "model_id"
+      ],
+      "title": "HubBindModelPayload",
+      "type": "object"
+    },
+    "HubBindReason": {
+      "description": "Why the Hub control endpoint could not be proven loopback-only (§5.8).\n\nThe values carry no address, port or PID: this type travels to the WebView.",
+      "enum": [
+        "RESOLVED_NON_LOOPBACK",
+        "LISTENER_NON_LOOPBACK",
+        "PROCESS_UNMAPPED",
+        "HUB_INFO_UNAVAILABLE",
+        "REVALIDATION_REQUIRED",
+        "PROBE_FAILED"
+      ],
+      "title": "HubBindReason",
+      "type": "string"
+    },
+    "HubBinding": {
+      "properties": {
+        "desired_model_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Desired Model Id"
+        },
+        "active_model_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active Model Id"
+        },
+        "provider_epoch": {
+          "default": 0,
+          "title": "Provider Epoch",
+          "type": "integer"
+        },
+        "load_origin": {
+          "default": "unknown",
+          "enum": [
+            "loaded_by_lva",
+            "preexisting",
+            "unknown"
+          ],
+          "title": "Load Origin",
+          "type": "string"
+        },
+        "status": {
+          "default": "unbound",
+          "enum": [
+            "unbound",
+            "preparing",
+            "stopping",
+            "loading",
+            "verifying",
+            "ready",
+            "degraded",
+            "failed"
+          ],
+          "title": "Status",
+          "type": "string"
+        },
+        "last_error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Error"
+        }
+      },
+      "title": "HubBinding",
+      "type": "object"
+    },
+    "HubBindingChangedPayload": {
+      "properties": {
+        "type": {
+          "const": "hub.binding_changed",
+          "title": "Type",
+          "type": "string"
+        },
+        "binding": {
+          "$ref": "#/$defs/HubBinding"
+        }
+      },
+      "required": [
+        "type",
+        "binding"
+      ],
+      "title": "HubBindingChangedPayload",
+      "type": "object"
+    },
+    "HubBindingPrecondition": {
+      "properties": {
+        "aggregate": {
+          "const": "hub_binding",
+          "title": "Aggregate",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "aggregate",
+        "revision"
+      ],
+      "title": "HubBindingPrecondition",
+      "type": "object"
+    },
+    "HubOperationProgressPayload": {
+      "properties": {
+        "type": {
+          "const": "hub.operation_progress",
+          "title": "Type",
+          "type": "string"
+        },
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "model_id": {
+          "title": "Model Id",
+          "type": "string"
+        },
+        "progress_percent": {
+          "title": "Progress Percent",
+          "type": "number"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "operation_id",
+        "model_id",
+        "progress_percent",
+        "message"
+      ],
+      "title": "HubOperationProgressPayload",
+      "type": "object"
+    },
+    "HubRefreshPayload": {
+      "properties": {
+        "type": {
+          "const": "hub.refresh",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "HubRefreshPayload",
+      "type": "object"
+    },
+    "HubSleepBoundModelPayload": {
+      "properties": {
+        "type": {
+          "const": "hub.sleep_bound_model",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "HubSleepBoundModelPayload",
+      "type": "object"
+    },
+    "InterruptCommittedPayload": {
+      "properties": {
+        "type": {
+          "const": "interrupt.committed",
+          "title": "Type",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TurnId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provider_epoch": {
+          "title": "Provider Epoch",
+          "type": "integer"
+        },
+        "new_floor": {
+          "$ref": "#/$defs/FloorOwner",
+          "default": "user"
+        }
+      },
+      "required": [
+        "type",
+        "provider_epoch"
+      ],
+      "title": "InterruptCommittedPayload",
+      "type": "object"
+    },
+    "InterruptDetectedPayload": {
+      "properties": {
+        "type": {
+          "const": "interrupt.detected",
+          "title": "Type",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TurnId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provider_epoch": {
+          "title": "Provider Epoch",
+          "type": "integer"
+        },
+        "rms": {
+          "title": "Rms",
+          "type": "number"
+        }
+      },
+      "required": [
+        "type",
+        "provider_epoch",
+        "rms"
+      ],
+      "title": "InterruptDetectedPayload",
+      "type": "object"
+    },
+    "InterruptSettledPayload": {
+      "properties": {
+        "type": {
+          "const": "interrupt.settled",
+          "title": "Type",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TurnId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "provider_epoch": {
+          "title": "Provider Epoch",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "provider_epoch"
+      ],
+      "title": "InterruptSettledPayload",
+      "type": "object"
+    },
+    "MemoryCommittedPayload": {
+      "properties": {
+        "type": {
+          "const": "memory.committed",
+          "title": "Type",
+          "type": "string"
+        },
+        "event_id": {
+          "format": "uuid",
+          "title": "Event Id",
+          "type": "string"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Id"
+        },
+        "turn_sequence": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Turn Sequence"
+        }
+      },
+      "required": [
+        "type",
+        "event_id"
+      ],
+      "title": "MemoryCommittedPayload",
+      "type": "object"
+    },
+    "MemoryCorrectPayload": {
+      "properties": {
+        "type": {
+          "const": "memory.correct",
+          "title": "Type",
+          "type": "string"
+        },
+        "event_id": {
+          "format": "uuid",
+          "title": "Event Id",
+          "type": "string"
+        },
+        "corrected_text": {
+          "title": "Corrected Text",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "actor": {
+          "default": "user",
+          "title": "Actor",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "event_id",
+        "corrected_text",
+        "reason"
+      ],
+      "title": "MemoryCorrectPayload",
+      "type": "object"
+    },
+    "MemoryEventPrecondition": {
+      "properties": {
+        "aggregate": {
+          "const": "memory_event",
+          "title": "Aggregate",
+          "type": "string"
+        },
+        "resource_id": {
+          "title": "Resource Id",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "aggregate",
+        "resource_id",
+        "revision"
+      ],
+      "title": "MemoryEventPrecondition",
+      "type": "object"
+    },
+    "MemoryHardDeletePayload": {
+      "properties": {
+        "type": {
+          "const": "memory.hard_delete",
+          "title": "Type",
+          "type": "string"
+        },
+        "event_ids": {
+          "items": {
+            "format": "uuid",
+            "type": "string"
+          },
+          "title": "Event Ids",
+          "type": "array"
+        },
+        "reason_code": {
+          "title": "Reason Code",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "event_ids",
+        "reason_code"
+      ],
+      "title": "MemoryHardDeletePayload",
+      "type": "object"
+    },
+    "MemoryRecallCompletedPayload": {
+      "properties": {
+        "type": {
+          "const": "memory.recall_completed",
+          "title": "Type",
+          "type": "string"
+        },
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "matched_count": {
+          "title": "Matched Count",
+          "type": "integer"
+        },
+        "parse_status": {
+          "title": "Parse Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "query",
+        "matched_count",
+        "parse_status"
+      ],
+      "title": "MemoryRecallCompletedPayload",
+      "type": "object"
+    },
+    "MemoryRevisionAddedPayload": {
+      "properties": {
+        "type": {
+          "const": "memory.revision_added",
+          "title": "Type",
+          "type": "string"
+        },
+        "event_id": {
+          "format": "uuid",
+          "title": "Event Id",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "event_id",
+        "revision",
+        "reason"
+      ],
+      "title": "MemoryRevisionAddedPayload",
+      "type": "object"
+    },
+    "MemorySearchPayload": {
+      "properties": {
+        "type": {
+          "const": "memory.search",
+          "title": "Type",
+          "type": "string"
+        },
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "limit": {
+          "default": 10,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "user_timezone": {
+          "default": "UTC",
+          "title": "User Timezone",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "query"
+      ],
+      "title": "MemorySearchPayload",
+      "type": "object"
+    },
+    "Mode": {
+      "enum": [
+        "standby",
+        "passive",
+        "live",
+        "privacy_pause"
+      ],
+      "title": "Mode",
+      "type": "string"
+    },
+    "ModeChangedPayload": {
+      "properties": {
+        "type": {
+          "const": "mode.changed",
+          "title": "Type",
+          "type": "string"
+        },
+        "previous_mode": {
+          "$ref": "#/$defs/Mode"
+        },
+        "new_mode": {
+          "$ref": "#/$defs/Mode"
+        },
+        "resume_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Mode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "type",
+        "previous_mode",
+        "new_mode"
+      ],
+      "title": "ModeChangedPayload",
+      "type": "object"
+    },
+    "Ownership": {
+      "enum": [
+        "spawned",
+        "adopted",
+        "external",
+        "unknown"
+      ],
+      "title": "Ownership",
+      "type": "string"
+    },
+    "PlaybackState": {
+      "properties": {
+        "active": {
+          "default": false,
+          "title": "Active",
+          "type": "boolean"
+        },
+        "device_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Device Name"
+        },
+        "current_generation": {
+          "default": 0,
+          "title": "Current Generation",
+          "type": "integer"
+        },
+        "muted": {
+          "default": false,
+          "title": "Muted",
+          "type": "boolean"
+        }
+      },
+      "title": "PlaybackState",
+      "type": "object"
+    },
+    "PrivacyScope": {
+      "enum": [
+        "VERIFIED_ALL_LVA_MANAGED_CAPTURE_OFF",
+        "LVA_CORE_OFF_EXTERNAL_CAPTURE_PRESENT",
+        "LVA_CORE_OFF_EXTERNAL_CAPTURE_UNKNOWN",
+        "NOT_PAUSED"
+      ],
+      "title": "PrivacyScope",
+      "type": "string"
+    },
+    "PrivacyScopeChangedPayload": {
+      "properties": {
+        "type": {
+          "const": "privacy.scope_changed",
+          "title": "Type",
+          "type": "string"
+        },
+        "previous_scope": {
+          "$ref": "#/$defs/PrivacyScope"
+        },
+        "new_scope": {
+          "$ref": "#/$defs/PrivacyScope"
+        },
+        "unverified_reasons": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Unverified Reasons",
+          "type": "array"
+        }
+      },
+      "required": [
+        "type",
+        "previous_scope",
+        "new_scope"
+      ],
+      "title": "PrivacyScopeChangedPayload",
+      "type": "object"
+    },
+    "ProviderState": {
+      "enum": [
+        "uninitialized",
+        "ready",
+        "busy",
+        "disconnected",
+        "error"
+      ],
+      "title": "ProviderState",
+      "type": "string"
+    },
+    "ProviderStateChangedPayload": {
+      "properties": {
+        "type": {
+          "const": "provider.state_changed",
+          "title": "Type",
+          "type": "string"
+        },
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "asr",
+            "llm",
+            "tts"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "previous_state": {
+          "$ref": "#/$defs/ProviderState"
+        },
+        "new_state": {
+          "$ref": "#/$defs/ProviderState"
+        },
+        "epoch": {
+          "title": "Epoch",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type",
+        "provider_id",
+        "kind",
+        "previous_state",
+        "new_state",
+        "epoch"
+      ],
+      "title": "ProviderStateChangedPayload",
+      "type": "object"
+    },
+    "ProviderStatus": {
+      "properties": {
+        "provider_id": {
+          "title": "Provider Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "asr",
+            "llm",
+            "tts"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/ProviderState",
+          "default": "uninitialized"
+        },
+        "current_model": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Current Model"
+        },
+        "epoch": {
+          "default": 0,
+          "title": "Epoch",
+          "type": "integer"
+        },
+        "last_error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Error"
+        }
+      },
+      "required": [
+        "provider_id",
+        "kind"
+      ],
+      "title": "ProviderStatus",
+      "type": "object"
+    },
+    "RuntimeControlPrecondition": {
+      "properties": {
+        "aggregate": {
+          "const": "runtime_control",
+          "title": "Aggregate",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "aggregate",
+        "revision"
+      ],
+      "title": "RuntimeControlPrecondition",
+      "type": "object"
+    },
+    "RuntimeGetSnapshotPayload": {
+      "properties": {
+        "type": {
+          "const": "runtime.get_snapshot",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "RuntimeGetSnapshotPayload",
+      "type": "object"
+    },
+    "RuntimeRestoreModePayload": {
+      "properties": {
+        "type": {
+          "const": "runtime.restore_mode",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "RuntimeRestoreModePayload",
+      "type": "object"
+    },
+    "RuntimeSetModePayload": {
+      "properties": {
+        "type": {
+          "const": "runtime.set_mode",
+          "title": "Type",
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/$defs/Mode"
+        }
+      },
+      "required": [
+        "type",
+        "mode"
+      ],
+      "title": "RuntimeSetModePayload",
+      "type": "object"
+    },
+    "RuntimeSnapshotPayload": {
+      "properties": {
+        "type": {
+          "const": "runtime.snapshot",
+          "title": "Type",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/RuntimeState"
+        }
+      },
+      "required": [
+        "type",
+        "state"
+      ],
+      "title": "RuntimeSnapshotPayload",
+      "type": "object"
+    },
+    "RuntimeState": {
+      "properties": {
+        "schema_version": {
+          "const": "1.0",
+          "default": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "runtime_instance_id": {
+          "format": "uuid",
+          "title": "Runtime Instance Id",
+          "type": "string"
+        },
+        "snapshot_version": {
+          "default": 0,
+          "title": "Snapshot Version",
+          "type": "integer"
+        },
+        "runtime_control_revision": {
+          "default": 0,
+          "title": "Runtime Control Revision",
+          "type": "integer"
+        },
+        "hub_binding_revision": {
+          "default": 0,
+          "title": "Hub Binding Revision",
+          "type": "integer"
+        },
+        "mode": {
+          "$ref": "#/$defs/Mode",
+          "default": "standby"
+        },
+        "resume_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Mode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Id"
+        },
+        "current_turn": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TurnId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "floor": {
+          "$ref": "#/$defs/FloorOwner",
+          "default": "none"
+        },
+        "activity": {
+          "$ref": "#/$defs/ActivityState",
+          "default": "idle"
+        },
+        "mic_capture": {
+          "$ref": "#/$defs/CaptureState"
+        },
+        "managed_capture": {
+          "$ref": "#/$defs/CaptureAggregate"
+        },
+        "playback": {
+          "$ref": "#/$defs/PlaybackState"
+        },
+        "services": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ServiceStatus"
+          },
+          "title": "Services",
+          "type": "object"
+        },
+        "providers": {
+          "additionalProperties": {
+            "$ref": "#/$defs/ProviderStatus"
+          },
+          "title": "Providers",
+          "type": "object"
+        },
+        "hub_binding": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HubBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "hub_bind_attestation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/HubBindAttestation"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "privacy_scope": {
+          "$ref": "#/$defs/PrivacyScope",
+          "default": "NOT_PAUSED"
+        }
+      },
+      "required": [
+        "runtime_instance_id"
+      ],
+      "title": "RuntimeState",
+      "type": "object"
+    },
+    "ServiceRetryPayload": {
+      "properties": {
+        "type": {
+          "const": "service.retry",
+          "title": "Type",
+          "type": "string"
+        },
+        "service_name": {
+          "title": "Service Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "service_name"
+      ],
+      "title": "ServiceRetryPayload",
+      "type": "object"
+    },
+    "ServiceState": {
+      "enum": [
+        "stopped",
+        "starting",
+        "healthy",
+        "degraded",
+        "failed"
+      ],
+      "title": "ServiceState",
+      "type": "string"
+    },
+    "ServiceStateChangedPayload": {
+      "properties": {
+        "type": {
+          "const": "service.state_changed",
+          "title": "Type",
+          "type": "string"
+        },
+        "service_name": {
+          "title": "Service Name",
+          "type": "string"
+        },
+        "previous_state": {
+          "$ref": "#/$defs/ServiceState"
+        },
+        "new_state": {
+          "$ref": "#/$defs/ServiceState"
+        }
+      },
+      "required": [
+        "type",
+        "service_name",
+        "previous_state",
+        "new_state"
+      ],
+      "title": "ServiceStateChangedPayload",
+      "type": "object"
+    },
+    "ServiceStatus": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/ServiceState",
+          "default": "stopped"
+        },
+        "ownership": {
+          "$ref": "#/$defs/Ownership",
+          "default": "unknown"
+        },
+        "pid": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pid"
+        },
+        "port": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Port"
+        },
+        "endpoint": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Endpoint"
+        },
+        "last_error": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Last Error"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ServiceStatus",
+      "type": "object"
+    },
+    "SessionEndedPayload": {
+      "properties": {
+        "type": {
+          "const": "session.ended",
+          "title": "Type",
+          "type": "string"
+        },
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "session_id"
+      ],
+      "title": "SessionEndedPayload",
+      "type": "object"
+    },
+    "SessionStartedPayload": {
+      "properties": {
+        "type": {
+          "const": "session.started",
+          "title": "Type",
+          "type": "string"
+        },
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "session_id"
+      ],
+      "title": "SessionStartedPayload",
+      "type": "object"
+    },
+    "SettingsClearSecretPayload": {
+      "properties": {
+        "type": {
+          "const": "settings.clear_secret",
+          "title": "Type",
+          "type": "string"
+        },
+        "secret_type": {
+          "enum": [
+            "cloud_api_key",
+            "asr_api_key",
+            "tts_api_key"
+          ],
+          "title": "Secret Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "secret_type"
+      ],
+      "title": "SettingsClearSecretPayload",
+      "type": "object"
+    },
+    "SettingsPrecondition": {
+      "properties": {
+        "aggregate": {
+          "const": "settings",
+          "title": "Aggregate",
+          "type": "string"
+        },
+        "revision": {
+          "title": "Revision",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "aggregate",
+        "revision"
+      ],
+      "title": "SettingsPrecondition",
+      "type": "object"
+    },
+    "SettingsSetSecretPayload": {
+      "properties": {
+        "type": {
+          "const": "settings.set_secret",
+          "title": "Type",
+          "type": "string"
+        },
+        "secret_type": {
+          "enum": [
+            "cloud_api_key",
+            "asr_api_key",
+            "tts_api_key"
+          ],
+          "title": "Secret Type",
+          "type": "string"
+        },
+        "secret_value": {
+          "title": "Secret Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "secret_type",
+        "secret_value"
+      ],
+      "title": "SettingsSetSecretPayload",
+      "type": "object"
+    },
+    "SettingsUpdatePublicPayload": {
+      "properties": {
+        "type": {
+          "const": "settings.update_public",
+          "title": "Type",
+          "type": "string"
+        },
+        "autostart": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Autostart"
+        },
+        "pet_dormancy_mode": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pet Dormancy Mode"
+        },
+        "idle_vram_release_mins": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idle Vram Release Mins"
+        },
+        "local_gguf_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Local Gguf Path"
+        },
+        "llm_mode": {
+          "anyOf": [
+            {
+              "enum": [
+                "local",
+                "cloud"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Llm Mode"
+        },
+        "active_character": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Active Character"
+        },
+        "record_reality_during_live": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Record Reality During Live"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "SettingsUpdatePublicPayload",
+      "type": "object"
+    },
+    "TurnCancelPayload": {
+      "properties": {
+        "type": {
+          "const": "turn.cancel",
+          "title": "Type",
+          "type": "string"
+        },
+        "turn_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TurnId"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reason": {
+          "default": "user_cancel",
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "TurnCancelPayload",
+      "type": "object"
+    },
+    "TurnCancelRequestedPayload": {
+      "properties": {
+        "type": {
+          "const": "turn.cancel_requested",
+          "title": "Type",
+          "type": "string"
+        },
+        "turn_id": {
+          "$ref": "#/$defs/TurnId"
+        },
+        "provider_epoch": {
+          "title": "Provider Epoch",
+          "type": "integer"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "turn_id",
+        "provider_epoch",
+        "reason"
+      ],
+      "title": "TurnCancelRequestedPayload",
+      "type": "object"
+    },
+    "TurnCancelledPayload": {
+      "properties": {
+        "type": {
+          "const": "turn.cancelled",
+          "title": "Type",
+          "type": "string"
+        },
+        "turn_id": {
+          "$ref": "#/$defs/TurnId"
+        },
+        "provider_epoch": {
+          "title": "Provider Epoch",
+          "type": "integer"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "turn_id",
+        "provider_epoch",
+        "reason"
+      ],
+      "title": "TurnCancelledPayload",
+      "type": "object"
+    },
+    "TurnCompletedPayload": {
+      "properties": {
+        "type": {
+          "const": "turn.completed",
+          "title": "Type",
+          "type": "string"
+        },
+        "turn_id": {
+          "$ref": "#/$defs/TurnId"
+        },
+        "provider_epoch": {
+          "title": "Provider Epoch",
+          "type": "integer"
+        },
+        "reply_text": {
+          "title": "Reply Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "turn_id",
+        "provider_epoch",
+        "reply_text"
+      ],
+      "title": "TurnCompletedPayload",
+      "type": "object"
+    },
+    "TurnId": {
+      "properties": {
+        "session_id": {
+          "format": "uuid",
+          "title": "Session Id",
+          "type": "string"
+        },
+        "sequence": {
+          "description": "Per-session monotonic sequence number, starting at 1",
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "session_id",
+        "sequence"
+      ],
+      "title": "TurnId",
+      "type": "object"
+    },
+    "TurnSendTextPayload": {
+      "properties": {
+        "type": {
+          "const": "turn.send_text",
+          "title": "Type",
+          "type": "string"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "session_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Session Id"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ],
+      "title": "TurnSendTextPayload",
+      "type": "object"
+    },
+    "TurnStartedPayload": {
+      "properties": {
+        "type": {
+          "const": "turn.started",
+          "title": "Type",
+          "type": "string"
+        },
+        "turn_id": {
+          "$ref": "#/$defs/TurnId"
+        },
+        "provider_epoch": {
+          "title": "Provider Epoch",
+          "type": "integer"
+        },
+        "user_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "User Text"
+        }
+      },
+      "required": [
+        "type",
+        "turn_id",
+        "provider_epoch"
+      ],
+      "title": "TurnStartedPayload",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "runtime_state": {
+      "$ref": "#/$defs/RuntimeState"
+    },
+    "event_envelope": {
+      "$ref": "#/$defs/EventEnvelope"
+    },
+    "command_envelope": {
+      "$ref": "#/$defs/CommandEnvelope"
+    },
+    "command_result": {
+      "$ref": "#/$defs/CommandResult"
+    },
+    "error_envelope": {
+      "$ref": "#/$defs/ErrorEnvelope"
+    }
+  },
+  "required": [
+    "runtime_state",
+    "event_envelope",
+    "command_envelope",
+    "command_result",
+    "error_envelope"
+  ],
+  "title": "LvaIpcSchemaRoot",
+  "type": "object"
+}

@@ -1,0 +1,28 @@
+{
+  "services": {
+    "lva_core": {
+      "name": "lva-core",
+      "port": 0,
+      "executable": "python",
+      "args": ["-m", "lva", "--bootstrap"],
+      "cwd": ".",
+      "health_url": null
+    },
+    "screenpipe": {
+      "name": "screenpipe",
+      "port": 3030,
+      "executable": "screenpipe",
+      "args": [
+        "record",
+        "--disable-vision",
+        "--disable-telemetry",
+        "--audio-transcription-engine",
+        "disabled",
+        "--api-auth",
+        "false"
+      ],
+      "cwd": ".",
+      "health_url": "http://127.0.0.1:3030/health"
+    }
+  }
+}

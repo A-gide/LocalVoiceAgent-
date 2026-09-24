@@ -1,0 +1,20 @@
+[package]
+name = "lva-codegen-rust"
+version = "0.0.0"
+edition = "2021"
+publish = false
+description = "Generates the Rust IPC contract from the normalized JSON Schema."
+
+[[bin]]
+name = "lva-codegen-rust"
+path = "src/main.rs"
+
+[dependencies]
+# Pinned by the frozen plan (ARCHITECTURE-PLAN §4.1 line 363).
+# typify-impl 0.8.0 depends on schemars 0.8.x; schemars 0.9 makes
+# `schemars::schema` private and `RootSchema` unreachable.
+typify = "=0.8.0"
+schemars = "=0.8.22"
+serde_json = "1"
+prettyplease = "0.2"
+syn = { version = "2", features = ["full"] }

@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.lva.pet",
   "build": {
-    "frontendDist": "../ui"
+    "frontendDist": "../../desktop-ui/dist"
   },
   "app": {
     "windows": [],

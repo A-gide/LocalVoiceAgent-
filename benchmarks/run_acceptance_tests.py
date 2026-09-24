@@ -77,8 +77,9 @@ async def run_all_acceptance_tests():
     print(f"  User input: {prompt_a}")
     print(f"  AI Reply: {res_a['reply']}")
     print(f"  Live WebSocket TTFA: {res_a['ttfa_ms']}ms | Total Turn Time: {res_a['total_ms']}ms")
-    from src.open_llm_vtuber.memory_router import correct_scientific_terminology
-    fixed_a, fixes_a = correct_scientific_terminology(prompt_a)
+    from lva.vocab import correct
+    res_corr = correct(prompt_a)
+    fixed_a, fixes_a = res_corr.corrected, res_corr.applied
     pass_a = any(f["to"] == "络合" for f in fixes_a) and res_a["audio_chunks"] > 0
     t_a = res_a.get("trace") or {}
     results["Test A"] = {

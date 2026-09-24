@@ -6,7 +6,7 @@
   "cloud_api_key_enc": "",
   "cloud_model": "deepseek-chat",
   "asr_provider": "local",
-  "asr_base_url": "http://127.0.0.1:12393/v1/audio/transcriptions",
+  "asr_base_url": "http://127.0.0.1:8765/api/asr",
   "asr_api_key_enc": "",
   "asr_model": "whisper-1",
   "tts_provider": "local",

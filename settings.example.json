@@ -1,0 +1,21 @@
+{
+  "llm_mode": "hub",
+  "hub_base_url": "http://127.0.0.1:8080",
+  "bound_model_id": "",
+  "cloud_provider": "deepseek",
+  "cloud_base_url": "https://api.deepseek.com/v1",
+  "cloud_api_key_enc": "",
+  "cloud_model": "deepseek-chat",
+  "asr_provider": "local",
+  "asr_base_url": "http://127.0.0.1:8765/api/asr",
+  "asr_api_key_enc": "",
+  "asr_model": "sensevoice",
+  "tts_provider": "local",
+  "tts_base_url": "http://127.0.0.1:8880/v1",
+  "tts_api_key_enc": "",
+  "tts_model": "melotts",
+  "tts_voice": "zh_en",
+  "active_character": "conf.yaml",
+  "idle_vram_release_mins": 15,
+  "pet_dormancy_mode": true
+}

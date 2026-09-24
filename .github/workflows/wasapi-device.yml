@@ -1,0 +1,90 @@
+name: WASAPI device gate (self-hosted, manual)
+
+# Real protocol A measurement. This runs ONLY on a runner that actually owns a
+# WASAPI loopback endpoint and a controllable playback path, so it is:
+#
+#   * self-hosted (a hosted runner has no audio endpoint), and
+#   * manual / label-triggered (never on push, so a missing device can never
+#     turn into an unexplained red build).
+#
+# Preconditions before this workflow can report a real number:
+#   1. the production playback path drives the output device with the fixed
+#      calibration/voice fixture, and
+#   2. the barge-in onset is injected at T0 on that same path.
+# Until then the gate is expected to report NO_PLAYBACK_DETECTED, and this
+# workflow asserts exactly that rather than pretending to have measured latency.
+#
+# Protocol B (physical dual-channel acoustic benchmark) is a separate, manual,
+# target-device procedure and is NOT run here.
+
+on:
+  workflow_dispatch:
+    inputs:
+      samples:
+        description: "Trials to run (frozen protocol requires >= 200)"
+        required: false
+        default: "200"
+      playback_frames:
+        description: "Frames captured per trial"
+        required: false
+        default: "48000"
+      t0_frame:
+        description: "Frame index where barge-in onset is injected"
+        required: false
+        default: "0"
+
+jobs:
+  protocol-a:
+    name: Protocol A - WASAPI loopback silence gate
+    runs-on: [self-hosted, windows, audio]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v10.2.0
+        with:
+          version: "0.12.6"
+
+      - name: Install locked audio-test dependencies
+        shell: pwsh
+        run: uv sync --locked --extra audio-test --python 3.11
+
+      - name: Confirm this runner really has a loopback endpoint
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -B -c "import soundcard as sc; ms=[m for m in sc.all_microphones(include_loopback=True) if m.isloopback]; print('loopback endpoints:', len(ms)); [print(' -', m.name) for m in ms]; raise SystemExit(0 if ms else 3)"
+          if ($LASTEXITCODE -ne 0) { throw "self-hosted runner has no WASAPI loopback endpoint" }
+
+      - name: Run protocol A gate
+        shell: pwsh
+        run: |
+          .\.venv\Scripts\python.exe -B benchmarks/wasapi_loopback.py `
+            --samples ${{ github.event.inputs.samples }} `
+            --playback-frames ${{ github.event.inputs.playback_frames }} `
+            --t0-frame ${{ github.event.inputs.t0_frame }} `
+            --report wasapi-protocol-a.json
+          Write-Host "scaffold exit=$LASTEXITCODE"
+          Get-Content wasapi-protocol-a.json -Raw
+
+      # Do NOT fail the job on a non-OK status here: until the playback fixture
+      # is wired the honest result IS NO_PLAYBACK_DETECTED. The assertion below
+      # fails only if the gate claims success without evidence.
+      - name: Assert the gate did not claim an unearned pass
+        shell: pwsh
+        run: |
+          $r = Get-Content wasapi-protocol-a.json -Raw | ConvertFrom-Json
+          if ($r.status -eq "OK") {
+            if ($r.playback_trials -lt 1) { throw "OK claimed with no playback trials observed" }
+            if ($r.samples -lt 1) { throw "OK claimed with zero valid samples" }
+            if ([double]$r.latency_ms.p95 -le 0) { throw "OK claimed with a non-positive P95" }
+            Write-Host "Measured: p50=$($r.latency_ms.p50) p95=$($r.latency_ms.p95) p99=$($r.latency_ms.p99) ms over $($r.samples) samples"
+          } else {
+            Write-Host "Gate did not measure (status=$($r.status)): $($r.reason)"
+            Write-Host "This is expected until the production playback/T0 wiring lands."
+          }
+
+      - name: Upload protocol A report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasapi-protocol-a
+          path: wasapi-protocol-a.json
+          if-no-files-found: error

@@ -1,0 +1,78 @@
+from __future__ import annotations
+
+from enum import Enum
+
+
+class Mode(str, Enum):
+    STANDBY = "standby"
+    PASSIVE = "passive"
+    LIVE = "live"
+    PRIVACY_PAUSE = "privacy_pause"
+
+
+class FloorOwner(str, Enum):
+    USER = "user"
+    AGENT = "agent"
+    NONE = "none"
+
+
+class ActivityState(str, Enum):
+    IDLE = "idle"
+    LISTENING = "listening"
+    THINKING = "thinking"
+    SPEAKING = "speaking"
+
+
+class ServiceState(str, Enum):
+    STOPPED = "stopped"
+    STARTING = "starting"
+    HEALTHY = "healthy"
+    DEGRADED = "degraded"
+    FAILED = "failed"
+
+
+class ProviderState(str, Enum):
+    UNINITIALIZED = "uninitialized"
+    READY = "ready"
+    BUSY = "busy"
+    DISCONNECTED = "disconnected"
+    ERROR = "error"
+
+
+class Ownership(str, Enum):
+    SPAWNED = "spawned"
+    ADOPTED = "adopted"
+    EXTERNAL = "external"
+    UNKNOWN = "unknown"
+
+
+class PrivacyScope(str, Enum):
+    VERIFIED_ALL_LVA_MANAGED_CAPTURE_OFF = "VERIFIED_ALL_LVA_MANAGED_CAPTURE_OFF"
+    LVA_CORE_OFF_EXTERNAL_CAPTURE_PRESENT = "LVA_CORE_OFF_EXTERNAL_CAPTURE_PRESENT"
+    LVA_CORE_OFF_EXTERNAL_CAPTURE_UNKNOWN = "LVA_CORE_OFF_EXTERNAL_CAPTURE_UNKNOWN"
+    NOT_PAUSED = "NOT_PAUSED"
+
+
+class ErrorCode(str, Enum):
+    AUTH_REQUIRED = "AUTH_REQUIRED"
+    AUTH_FAILED = "AUTH_FAILED"
+    ORIGIN_REJECTED = "ORIGIN_REJECTED"
+    PROTOCOL_MISMATCH = "PROTOCOL_MISMATCH"
+    STALE_REVISION = "STALE_REVISION"
+    DUPLICATE_COMMAND = "DUPLICATE_COMMAND"
+    INVALID_TRANSITION = "INVALID_TRANSITION"
+    PASSIVE_PROVIDER_FORBIDDEN = "PASSIVE_PROVIDER_FORBIDDEN"
+    PRIVACY_UNVERIFIED = "PRIVACY_UNVERIFIED"
+    HUB_UNAVAILABLE = "HUB_UNAVAILABLE"
+    HUB_VERSION_UNSUPPORTED = "HUB_VERSION_UNSUPPORTED"
+    HUB_CONTROL_UNSAFE = "HUB_CONTROL_UNSAFE"
+    HUB_BIND_UNVERIFIED = "HUB_BIND_UNVERIFIED"
+    PROFILE_REQUIRED = "PROFILE_REQUIRED"
+    MODEL_CONFLICT_REQUIRES_CONFIRMATION = "MODEL_CONFLICT_REQUIRES_CONFIRMATION"
+    MODEL_LOAD_FAILED = "MODEL_LOAD_FAILED"
+    PROVIDER_DISCONNECTED = "PROVIDER_DISCONNECTED"
+    TURN_CANCELLED = "TURN_CANCELLED"
+    STALE_EFFECT_DROPPED = "STALE_EFFECT_DROPPED"
+    JOURNAL_BUSY = "JOURNAL_BUSY"
+    IMPORT_SCHEMA_UNSUPPORTED = "IMPORT_SCHEMA_UNSUPPORTED"
+    MIGRATION_FAILED = "MIGRATION_FAILED"

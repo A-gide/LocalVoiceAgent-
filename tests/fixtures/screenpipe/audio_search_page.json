@@ -1,0 +1,43 @@
+{
+  "data": [
+    {
+      "type": "Audio",
+      "id": "sp-audio-101",
+      "content": {
+        "timestamp": "2026-09-21T08:00:00+08:00",
+        "transcription": "今天上午讨论了本地语音助手的架构方案",
+        "device_name": "Builtin Microphone",
+        "file_path": "/var/screenpipe/audio_101.wav",
+        "duration": 5.2
+      }
+    },
+    {
+      "type": "Audio",
+      "id": "sp-audio-102",
+      "content": {
+        "timestamp": "2026-09-21T08:05:00+08:00",
+        "transcription": "明天下午做络合滴定实验",
+        "device_name": "Builtin Microphone",
+        "file_path": "/var/screenpipe/audio_102.wav",
+        "duration": 3.8
+      }
+    },
+    {
+      "type": "Audio",
+      "id": "sp-audio-103",
+      "redacted": true,
+      "content": {
+        "timestamp": "2026-09-21T08:10:00+08:00",
+        "transcription": "[REDACTED]",
+        "device_name": "Builtin Microphone",
+        "file_path": "/var/screenpipe/audio_103.wav",
+        "duration": 2.1
+      }
+    }
+  ],
+  "pagination": {
+    "limit": 50,
+    "offset": 0,
+    "total": 3
+  }
+}

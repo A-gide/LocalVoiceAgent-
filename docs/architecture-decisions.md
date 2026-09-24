@@ -8,7 +8,7 @@
 
 ## ADR-001: Live Shell 与双进程分离架构决策
 
-- **状态**: Accepted (Superseded & Fully Implemented per MASTER_PROMPT.md)
+- **状态**: Superseded by ADR-010 (Single Conversation Authority)
 - **上下文**:
   - MASTER_PROMPT.md 要求严格区分“24/7 静默被动记录”与“主动交互交互 Shell”两大职责，严禁任何单一进程出现“听到环境声自动插嘴”或麦克风抢占。
   - Prompt 要求以 Open-LLM-VTuber（Live2D + WebSocket 语音管道，端口 12393）作为实时交互式 Shell，同时使用 Screenpipe（端口 3030，仅开启音频，禁用视觉与遥测）作为 24/7 后台被动事实记录器。
@@ -90,7 +90,7 @@
 
 ## ADR-006: 三层记忆边界与确定性时间路由决策
 
-- **状态**: Accepted
+- **状态**: Superseded by ADR-011 (LVA Journal Canonical Memory)
 - **上下文**:
   - 规范第 18、19、20、42.8 节明确要求：现实记忆必须有事实源，不能将所有历史塞入 Context，不能依赖小模型的 tool-calling 来判断是否查历史，且绝不能虚构记忆。
 - **决策**:
@@ -108,7 +108,7 @@
 
 ## ADR-007: 8GB VRAM 显存硬约束分配策略
 
-- **状态**: Accepted
+- **状态**: Accepted (LM Studio provider superseded by ADR-009 Hub Runtime Authority)
 - **上下文**:
   - 目标机器为 RTX 4060 Laptop 8GB VRAM，显存是绝对硬约束。若多个模型争抢显存将导致 CUDA OOM 或频繁 swap 崩溃。
 - **决策**:
@@ -119,6 +119,67 @@
   - **总峰值控制**: 对话时总系统显存保持在 6.0~6.2 GB，保留超过 1.5 GB 的绝对安全缓冲区，永不触碰 7.5GB 警戒线。
 - **影响**:
   - 彻底杜绝 OOM，保证系统可 24/7 长期稳定驻留运行。
+
+---
+
+## ADR-009: llama.cpp-hub 模型运行时权威 (Hub Runtime Authority)
+
+- **状态**: Accepted (Supersedes LM Studio assumption in ADR-007)
+- **上下文**:
+  - 原方案依赖 LM Studio 或直接管理裸 `llama-server`，导致 LVA 需处理 GGUF 扫描、端口冲突与多套参数，违背关注点分离。
+- **决策**:
+  - `llama.cpp-hub` 为唯一的模型运行时权威 (Model Runtime Authority)。
+  - LVA Core 不扫描 GGUF、不启动或杀死 Hub 子进程、不维护 llama.cpp 启动参数。
+  - LVA Core 通过版本化 Hub Control Client (`/api/*`) 和 Hub Inference Client (`/v1/*`) 进行通信。
+  - 明确 Hub 无自动卸载语义，模型卸载必须显式调用 `POST /api/models/stop`。
+- **影响**:
+  - 简化了模型管理复杂度，彻底杜绝误杀用户外部进程的风险。
+
+---
+
+## ADR-010: 单一会话权威与安全 IPC 架构 (Single Conversation Authority & Secure IPC)
+
+- **状态**: Accepted (Supersedes ADR-001)
+- **上下文**:
+  - 原 Open-LLM-VTuber 与 LVA Core 双轨并存，导致双重 Turn/Floor/Session 管理和状态竞争。
+  - Core 原先监听固定端口且无严格鉴权，存在安全隐患。
+- **决策**:
+  - LVA Core 是系统唯一的会话权威 (Single Conversation Authority)。Session、Turn、Floor、Interrupt、ASR/LLM/TTS 调度均仅由 LVA Core 管辖。
+  - 冻结并逐步移除 Open-LLM-VTuber 会话核心，仅保留或迁移其 Live2D 资产。
+  - 采用临时端口 (`127.0.0.1:0`) 与一次性管道握手启动协议：Tauri 生成 256-bit token + nonce 经 child stdin 交付，Core 绑定临时端口并回传 `LVA_READY`。
+  - WebView 绝不直连 Core 或 Hub，所有通信由 Tauri Rust Bridge 代理。
+- **影响**:
+  - 根除双轨冲突，确立端到端可验证的私有安全通信边界。
+
+---
+
+## ADR-011: LVA Journal 规范记忆与 Screenpipe 现实源解耦 (LVA Journal Canonical Memory)
+
+- **状态**: Accepted (Supersedes ADR-006 direct Screenpipe DB ownership)
+- **上下文**:
+  - 原实现直接读写 Screenpipe 的 SQLite 内部数据库，导致模式耦合与锁冲突风险。
+- **决策**:
+  - LVA Journal (`%LOCALAPPDATA%\LocalVoiceAgent\data\journal.sqlite3`) 为唯一的规范业务记忆库。
+  - 采用 SQLite WAL + 外键 + 触发器保护：`raw_text` 不可篡改，纠错转写采用 append-only revisions，FTS5 全文索引原子同步。
+  - Screenpipe 仅作为原始现实源 (Raw Reality Source)，通过受支持的 REST 接口以版本化 DTO 幂等导入 Journal，按 `(external_source, external_id)` 唯一索引去重。
+- **影响**:
+  - 业务记忆与采集源彻底解耦，保障数据一致性与审计能力。
+
+---
+
+## ADR-012: 隐私暂停采集范围与可证明承诺 (Privacy Pause Capture Scope)
+
+- **状态**: Accepted
+- **上下文**:
+  - “隐私暂停”需确保麦克风在物理上停止采集，且必须准确反映外部录音组件的实际受控状态。
+- **决策**:
+  - Privacy Pause 触发时，Core 物理关闭麦克风音频采集流，并协调受 LVA 管理的采集进程。
+  - `RuntimeState.privacy_scope` 细分为 `VERIFIED_ALL_LVA_MANAGED_CAPTURE_OFF`、`LVA_CORE_OFF_EXTERNAL_CAPTURE_PRESENT`、`LVA_CORE_OFF_EXTERNAL_CAPTURE_UNKNOWN`、`NOT_PAUSED`。
+  - 无法确认外部 Screenpipe 已停录时，显示 `UNVERIFIED`，禁止虚假宣称所有采集已关闭。
+  - `resume_mode` 仅保留在内存中，重启后一律回到 `STANDBY` 模式。
+- **影响**:
+  - 确保隐私保护具有技术可验证性与真实性，杜绝安全虚假感知。
+
 
 ---
 

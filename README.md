@@ -40,10 +40,23 @@ LocalVoiceAgent/
 
 ### 1. 环境要求
 - **操作系统**：Windows 10 / 11 (x64)
-- **运行环境**：Python 3.10+、Rust 1.75+ (Cargo)、Node.js 18+
+- **运行环境**：Python 3.11 或 3.12、`uv` 命令（需在 PATH）、Rust 1.75+ (Cargo)、Node.js 18+
 - **硬件推荐**：支持 CUDA 12 的 NVIDIA 独立显卡 (建议 6GB+ 显存)
 
 ### 2. 构建与运行
+
+Python Core 的依赖由根目录 `pyproject.toml` 和 `uv.lock` 管理；只在项目本地创建 `.venv`，不安装到全局 Python，也不把 vendored OLV 包并入根项目：
+
+```powershell
+uv sync --locked --extra dev --python 3.11
+.\.venv\Scripts\python.exe -B -c "import lva"
+.\.venv\Scripts\python.exe -B -m pytest tests/unit/test_commands.py -q
+.\.venv\Scripts\python.exe -B tests/run_groups.py unit contract harness
+```
+
+只有在有意修改依赖时才运行 `uv lock` 并复核锁文件；日常安装使用 `--locked`。
+代码检查使用独立的锁定 lint group：`uv sync --locked --extra dev --group lint --python 3.11`，随后运行 `.\.venv\Scripts\ruff.exe check src/lva tests/run_groups.py`。真实 WASAPI 测试另加 `--extra audio-test`，不会让普通安装依赖音频设备。
+
 ```powershell
 # 启动桌面壳工程
 cd apps/desktop-shell/src-tauri

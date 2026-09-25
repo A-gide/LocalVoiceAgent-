@@ -70,7 +70,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { useRuntimeStore } from '@/stores/runtime';
 import { useWindowGeometry } from '@/composables/window/useWindowGeometry';
 import ControlsIsland from './ControlsIsland.vue';
@@ -81,6 +81,7 @@ const geometry = useWindowGeometry();
 
 const live2dReady = ref(false);
 const live2dError = ref(false);
+let unwatchPosition: (() => void) | null = null;
 
 function handleLive2DReady() {
   live2dReady.value = true;
@@ -106,7 +107,17 @@ onMounted(async () => {
   // that still exists.  This runs before the snapshot fetch so a stale position
   // is corrected even if the Core is slow to answer.
   await geometry.restoreSavedGeometry();
+  // Then keep it current: without a write-back, a placement the user chose is
+  // forgotten on every restart (S-UI-01 §1.5).
+  unwatchPosition = await geometry.watchPosition();
+  // Record the position we actually ended up at, so a restart after a crash --
+  // which never emits a move event -- still finds a usable record.
+  await geometry.persistCurrent();
   await runtime.fetchSnapshot();
+});
+
+onUnmounted(() => {
+  if (unwatchPosition) unwatchPosition();
 });
 </script>
 

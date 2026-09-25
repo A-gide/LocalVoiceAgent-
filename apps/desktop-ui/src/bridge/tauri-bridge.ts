@@ -76,6 +76,10 @@ export function isTauriEnvironment(): boolean {
   return typeof window !== 'undefined' && ('__TAURI_INTERNALS__' in window || '__TAURI__' in window);
 }
 
+/// The live `lva://event` subscription, if any.  Module-level because the stream
+/// belongs to the bridge, not to whichever component happened to subscribe first.
+let eventSubscription: (() => void) | null = null;
+
 async function invokeTauri<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (isTauriEnvironment()) {
     const { invoke } = await import('@tauri-apps/api/core');
@@ -280,15 +284,27 @@ export const TauriBridge = {
     return invokeTauri<PublicAppSettings>('get_public_settings');
   },
 
-  async setSecret(secretType: string, secretValue: string): Promise<void> {
+  async setSecret(
+    secretType: string,
+    secretValue: string,
+    secretRevision: number | null = null,
+  ): Promise<void> {
     return invokeTauri<void>('set_secret', {
       secret_type: secretType,
       secret_value: secretValue,
+      // Plan L463: a secret write carries the settings revision so a concurrent
+      // edit is refused with STALE_REVISION instead of being silently clobbered.
+      // Null means "this caller has not read the DTO yet", which the Rust side
+      // accepts as the documented first-write case.
+      settings_revision: secretRevision,
     });
   },
 
-  async clearSecret(secretType: string): Promise<void> {
-    return invokeTauri<void>('clear_secret', { secret_type: secretType });
+  async clearSecret(secretType: string, secretRevision: number | null = null): Promise<void> {
+    return invokeTauri<void>('clear_secret', {
+      secret_type: secretType,
+      settings_revision: secretRevision,
+    });
   },
 
   async getServicesStatus(): Promise<FullServicesStatus> {
@@ -343,5 +359,36 @@ export const TauriBridge = {
     }
     // Mock event listener
     return () => {};
+  },
+
+  /**
+   * Subscribe to Core events, replacing any previous subscription (S-UI-01 §1.7).
+   *
+   * `listenEvent` is a one-shot subscription: a WebView that reloads (a dev-server
+   * refresh, a renderer crash) loses it silently, and the UI keeps rendering stale
+   * state with no error to notice.  This is the idempotent form -- calling it again
+   * releases the old listener first, so a reload re-establishes the stream without
+   * ever running two listeners that would apply each event twice.
+   *
+   * Returns an unlisten for the caller that owns the lifecycle.
+   */
+  async ensureEventSubscription(
+    callback: (event: EventEnvelope) => void,
+  ): Promise<() => void> {
+    const previous = eventSubscription;
+    if (previous) {
+      try {
+        previous();
+      } catch (e) {
+        console.warn('Failed to release the previous event subscription', e);
+      }
+      eventSubscription = null;
+    }
+    const unlisten = await TauriBridge.listenEvent(callback);
+    eventSubscription = unlisten;
+    return () => {
+      if (eventSubscription === unlisten) eventSubscription = null;
+      unlisten();
+    };
   },
 };

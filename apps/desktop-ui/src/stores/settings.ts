@@ -30,13 +30,16 @@ export const useSettingsStore = defineStore('settings', () => {
 
   async function setSecret(type: string, value: string) {
     if (!value.trim()) return;
-    await TauriBridge.setSecret(type, value.trim());
+    // Quote the revision this UI last saw so a concurrent edit is refused rather
+    // than overwritten (plan L463).  `undefined` would be a missing argument, so a
+    // not-yet-read revision is sent as null -- the documented first-write case.
+    await TauriBridge.setSecret(type, value.trim(), settings.value?.settings_revision ?? null);
     await loadSettings();
     lastOpMessage.value = `已安全更新 ${type} 密钥 (写入保护)`;
   }
 
   async function clearSecret(type: string) {
-    await TauriBridge.clearSecret(type);
+    await TauriBridge.clearSecret(type, settings.value?.settings_revision ?? null);
     await loadSettings();
     lastOpMessage.value = `已清除 ${type} 密钥`;
   }

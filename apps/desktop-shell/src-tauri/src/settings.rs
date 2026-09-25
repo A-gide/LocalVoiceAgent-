@@ -346,6 +346,27 @@ impl SettingsManager {
     }
 
     pub fn set_secret(&self, secret_type: &str, secret_value: &str) -> Result<(), String> {
+        self.set_secret_checked(secret_type, secret_value, None)
+    }
+
+    /// Write a secret, optionally guarded by the settings revision (plan L463).
+    ///
+    /// L463 requires a `settings_revision` precondition on "settings update/clear
+    /// secret".  The guard belongs here rather than in Core: the authority matrix
+    /// (L293) gives secrets to this layer, so a concurrent write is detectable
+    /// exactly where the write happens.
+    ///
+    /// `expected` of `None` keeps the previous behaviour and is what a first write
+    /// from a UI that has not read the DTO yet supplies.  A supplied revision that
+    /// no longer matches is refused with `STALE_REVISION` and the current revision,
+    /// so the caller can refresh and retry instead of clobbering the other edit.
+    pub fn set_secret_checked(
+        &self,
+        secret_type: &str,
+        secret_value: &str,
+        expected: Option<u64>,
+    ) -> Result<(), String> {
+        self.check_revision(expected)?;
         {
             let mut s = self.settings.write().unwrap();
             match secret_type {
@@ -365,6 +386,11 @@ impl SettingsManager {
 
     pub fn clear_secret(&self, secret_type: &str) -> Result<(), String> {
         self.set_secret(secret_type, "")
+    }
+
+    /// Clear a secret under the same revision guard as a write (plan L463).
+    pub fn clear_secret_checked(&self, secret_type: &str, expected: Option<u64>) -> Result<(), String> {
+        self.set_secret_checked(secret_type, "", expected)
     }
 
     pub fn update_settings(&self, new_settings: AppSettings) -> Result<(), String> {
@@ -532,6 +558,45 @@ mod tests {
             sm.settings_revision(),
             before,
             "a failed write must not bump the revision"
+        );
+    }
+
+    #[test]
+    fn a_secret_write_is_guarded_by_the_revision_it_quotes() {
+        // Plan L463 requires the precondition on "settings update/clear secret".
+        // The guard must be on the *write path*, not merely available as a helper:
+        // a stale caller has to be refused before the value is replaced.
+        let sm = isolated_manager("l463-guard");
+        let stale = sm.settings_revision();
+        sm.set_secret("cloud_api_key", "first-value").expect("first write");
+
+        let err = sm
+            .set_secret_checked("cloud_api_key", "second-value", Some(stale))
+            .expect_err("a write quoting a stale revision must be refused");
+        assert!(err.contains("STALE_REVISION"), "error must name STALE_REVISION");
+
+        // The refused write must not have replaced the value.
+        assert_eq!(sm.get_settings().cloud_api_key, "first-value");
+
+        // Quoting the current revision succeeds.
+        let current = sm.settings_revision();
+        sm.set_secret_checked("cloud_api_key", "third-value", Some(current))
+            .expect("a write quoting the current revision must succeed");
+        assert_eq!(sm.get_settings().cloud_api_key, "third-value");
+    }
+
+    #[test]
+    fn clearing_a_secret_is_guarded_the_same_way() {
+        let sm = isolated_manager("l463-clear");
+        sm.set_secret("tts_api_key", "a-value").expect("seed");
+        let stale = sm.settings_revision();
+        sm.set_secret("tts_api_key", "another-value").expect("advance");
+
+        assert!(sm.clear_secret_checked("tts_api_key", Some(stale)).is_err());
+        assert_eq!(
+            sm.get_settings().tts_api_key,
+            "another-value",
+            "a refused clear must leave the secret in place"
         );
     }
 

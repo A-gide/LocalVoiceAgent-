@@ -304,13 +304,24 @@ fn get_public_settings(sm: State<Arc<SettingsManager>>) -> PublicAppSettings {
 }
 
 #[tauri::command]
-fn set_secret(secret_type: String, secret_value: String, sm: State<Arc<SettingsManager>>) -> Result<(), String> {
-    sm.set_secret(&secret_type, &secret_value)
+fn set_secret(
+    secret_type: String,
+    secret_value: String,
+    settings_revision: Option<u64>,
+    sm: State<Arc<SettingsManager>>,
+) -> Result<(), String> {
+    // `settings_revision` is optional: plan L463 requires the precondition on a
+    // secret write, and a caller that has not read the DTO yet supplies nothing.
+    sm.set_secret_checked(&secret_type, &secret_value, settings_revision)
 }
 
 #[tauri::command]
-fn clear_secret(secret_type: String, sm: State<Arc<SettingsManager>>) -> Result<(), String> {
-    sm.clear_secret(&secret_type)
+fn clear_secret(
+    secret_type: String,
+    settings_revision: Option<u64>,
+    sm: State<Arc<SettingsManager>>,
+) -> Result<(), String> {
+    sm.clear_secret_checked(&secret_type, settings_revision)
 }
 
 #[tauri::command]

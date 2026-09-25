@@ -39,7 +39,10 @@ onMounted(async () => {
   }
 
   // Subscribe to core events
-  unlisten = await TauriBridge.listenEvent((event) => {
+  // Through `ensureEventSubscription` rather than `listenEvent`: a WebView reload
+  // drops a one-shot listener silently, and the UI would keep showing stale state
+  // with nothing to notice (S-UI-01 §1.7).
+  unlisten = await TauriBridge.ensureEventSubscription((event) => {
     runtime.handleEvent(event);
 
     // Chat turn events

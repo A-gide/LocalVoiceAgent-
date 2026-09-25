@@ -144,6 +144,52 @@ export function useWindowGeometry() {
     }
   }
 
+  /**
+   * Remember the position, at most once per quiet period.
+   *
+   * A drag emits a move event per frame, so writing on every event would rewrite
+   * the settings file hundreds of times for one gesture.  Debouncing keeps the
+   * final position and skips the intermediate ones -- which is also the only one
+   * worth keeping.
+   */
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  function persistCurrentDebounced(delayMs = 400): void {
+    if (persistTimer !== null) clearTimeout(persistTimer);
+    persistTimer = setTimeout(() => {
+      persistTimer = null;
+      void persistCurrent();
+    }, delayMs);
+  }
+
+  /**
+   * Record moves for as long as this window lives, returning an unlisten.
+   *
+   * Called once from the character view.  A drag that ends off-screen is clamped
+   * back on the next start, which is why the raw position is stored rather than a
+   * clamped one: the clamp needs the live monitor list, and that belongs to the
+   * next start, not to this one.
+   */
+  async function watchPosition(): Promise<() => void> {
+    if (!isTauriEnvironment()) return () => {};
+    try {
+      const { getCurrentWebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+      const win = getCurrentWebviewWindow();
+      const unlisten = await win.onMoved(() => persistCurrentDebounced());
+      const unlistenResized = await win.onResized(() => persistCurrentDebounced());
+      return () => {
+        if (persistTimer !== null) {
+          clearTimeout(persistTimer);
+          persistTimer = null;
+        }
+        unlisten();
+        unlistenResized();
+      };
+    } catch (e) {
+      console.warn('Could not watch window position', e);
+      return () => {};
+    }
+  }
+
   async function toggleClickThrough() {
     isClickThrough.value = !isClickThrough.value;
     if (isTauriEnvironment()) {
@@ -202,5 +248,7 @@ export function useWindowGeometry() {
     restoreGeometry,
     restoreSavedGeometry,
     persistCurrent,
+    persistCurrentDebounced,
+    watchPosition,
   };
 }

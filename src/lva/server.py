@@ -221,7 +221,28 @@ def get_runtime() -> RuntimeController:
             on_mode_changed=_sync_legacy_mode,
             hub_saga=get_hub_saga(),
         )
+        # PR-020/L1335: the Core mic stop must be a *physical* stop, so the
+        # coordinator drives the real device instead of flipping its own flag.
+        # The device belongs to the legacy pipeline until PR-037, and the owner
+        # injects it here -- Core keeps no audio-device reference of its own.
+        _runtime.capture_coordinator.on_stop_mic = _stop_core_mic_device
+        _runtime.capture_coordinator.on_start_mic = _start_core_mic_device
     return _runtime
+
+
+def _stop_core_mic_device() -> None:
+    """Close the real capture stream so no frames can reach VAD/ASR (I09)."""
+    mic = getattr(_core, "mic", None) if _core is not None else None
+    if mic is None:
+        return
+    mic.stop()
+
+
+def _start_core_mic_device() -> None:
+    mic = getattr(_core, "mic", None) if _core is not None else None
+    if mic is None:
+        return
+    mic.start()
 
 
 def _sync_legacy_mode(new_mode: Mode) -> None:

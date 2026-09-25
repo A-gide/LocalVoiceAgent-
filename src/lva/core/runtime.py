@@ -17,7 +17,7 @@ from ..contracts.enums import (
     ServiceState,
 )
 from ..contracts.errors import ErrorEnvelope
-from ..contracts.events import EventEnvelope, EventPayload
+from ..contracts.events import EventEnvelope, EventPayload, PrivacyScopeChangedPayload
 from ..contracts.ids import TurnId
 from ..contracts.state import (
     HubBinding,
@@ -46,6 +46,7 @@ class RuntimeController:
         on_interrupt_action: Callable[[str], None] | None = None,
         on_mode_changed: Callable[[Mode], None] | None = None,
         turn_executor: Any | None = None,
+        capture_now: Callable[[], Any] | None = None,
     ) -> None:
         self.runtime_instance_id = runtime_instance_id or uuid4()
         self._event_broadcaster = event_broadcaster
@@ -87,8 +88,10 @@ class RuntimeController:
             get_current_turn=lambda: self.turn_controller.current_turn,
             get_current_epoch=lambda: self.interrupt_controller.provider_epoch,
         )
-        self.capture_coordinator = CaptureCoordinator()
-        self.capture_coordinator.request_managed_capture_off()
+        self.capture_coordinator = CaptureCoordinator(now=capture_now)
+        # Startup assumption, not an operation: nothing has been spawned yet, so
+        # there is no executor that could acknowledge a request (plan L1335).
+        self.capture_coordinator.request_managed_capture_off(track=False)
 
         self._mode: Mode = Mode.STANDBY
         self._resume_mode: Mode | None = None
@@ -173,18 +176,24 @@ class RuntimeController:
     def set_mode(self, new_mode: Mode) -> None:
         if self._mode == new_mode:
             if new_mode == Mode.STANDBY:
+                previous_scope = self.capture_coordinator.compute_privacy_scope(self._mode)
                 self.capture_coordinator.stop_core_mic()
                 self.capture_coordinator.request_managed_capture_off()
+                self._publish_privacy_scope(previous_scope)
             return
 
         old_mode = self._mode
         log.info("Mode transition: %s -> %s", old_mode.value, new_mode.value)
+        previous_scope = self.capture_coordinator.compute_privacy_scope(old_mode)
 
         # Mode-specific transitions
         if new_mode == Mode.PRIVACY_PAUSE:
             self._resume_mode = old_mode
             self.capture_coordinator.stop_core_mic()
-            self.capture_coordinator.update_managed_capture_status(managed_stopped=None)
+            # L1335: Privacy Pause *sends* a managed-capture-off operation.  Merely
+            # recording "unknown" asked nobody to stop anything, so no ack could
+            # ever arrive and the scope was stuck unverified forever.
+            self.capture_coordinator.request_managed_capture_off()
             # Cancel active turn and interrupt AI speech if active
             self.interrupt_controller.commit_interrupt(reason="privacy_pause")
         elif new_mode == Mode.STANDBY:
@@ -195,12 +204,20 @@ class RuntimeController:
         elif new_mode in (Mode.PASSIVE, Mode.LIVE):
             self._resume_mode = None
             self.capture_coordinator.start_core_mic()
+            # 3.3: entering Passive *is* the recording act, so managed capture is
+            # On.  Live follows the explicit setting, whose first-install default
+            # is Off -- LVA must not silently record reality while Live.
+            if new_mode == Mode.PASSIVE or self.record_reality_during_live:
+                self.capture_coordinator.request_managed_capture_on()
+            else:
+                self.capture_coordinator.request_managed_capture_off()
             if self.session_controller.current_session_id is None:
                 self.session_controller.start_session()
 
         self._mode = new_mode
         self._runtime_control_revision += 1
         self._snapshot_version += 1
+        self._publish_privacy_scope(previous_scope)
         if self._on_mode_changed:
             try:
                 self._on_mode_changed(new_mode)
@@ -212,6 +229,72 @@ class RuntimeController:
         target = self._resume_mode or Mode.STANDBY
         self.set_mode(target)
         return target
+
+    # ------------------------------------------------------- privacy scope
+    def _publish_privacy_scope(self, previous_scope: PrivacyScope | None = None) -> None:
+        """Emit ``privacy.scope_changed`` when the scope actually moves.
+
+        Plan L421 lists the event and L754 makes the scope ack-driven, but nothing
+        produced it: the shell and UI had no way to learn that a privacy pause was
+        or was not verified.  Publishing from one place keeps the event and the
+        published ``RuntimeState.privacy_scope`` from drifting apart.
+        """
+        scope = self.capture_coordinator.compute_privacy_scope(self._mode)
+        if previous_scope is not None and scope == previous_scope:
+            return
+        payload = PrivacyScopeChangedPayload(
+            type="privacy.scope_changed",
+            previous_scope=previous_scope or PrivacyScope.NOT_PAUSED,
+            new_scope=scope,
+            unverified_reasons=self.capture_coordinator.unverified_reasons(self._mode),
+        )
+        self.emit_event(event_type="privacy.scope_changed", payload=payload)
+
+    def acknowledge_capture_operation(
+        self,
+        operation_id: str,
+        managed_stopped: bool | None = None,
+        external_detected: bool | None = None,
+    ) -> bool:
+        """Apply the capture executor's ack (plan L1335/L1345).
+
+        Returns False when the ack matches no outstanding operation, so an
+        unrelated or stale ack can never move the privacy scope.
+        """
+        previous = self.capture_coordinator.compute_privacy_scope(self._mode)
+        accepted = self.capture_coordinator.acknowledge(
+            operation_id,
+            managed_stopped=managed_stopped,
+            external_detected=external_detected,
+        )
+        if not accepted:
+            return False
+        self._snapshot_version += 1
+        self._publish_privacy_scope(previous)
+        return True
+
+    def expire_capture_operations(self) -> list[Any]:
+        """Fail closed on unanswered capture requests (L1337/L1338)."""
+        previous = self.capture_coordinator.compute_privacy_scope(self._mode)
+        expired = self.capture_coordinator.expire_overdue()
+        if expired:
+            self._snapshot_version += 1
+            self._publish_privacy_scope(previous)
+        return expired
+
+    def set_record_reality_during_live(self, enabled: bool) -> None:
+        """Set the Live-mode reality-recording intent (plan L1335 / 3.3).
+
+        While Live this is a live control, so the managed-capture intent follows
+        immediately instead of waiting for the next mode transition.
+        """
+        self.record_reality_during_live = bool(enabled)
+        if self._mode == Mode.LIVE:
+            if self.record_reality_during_live:
+                self.capture_coordinator.request_managed_capture_on()
+            else:
+                self.capture_coordinator.request_managed_capture_off()
+        self._snapshot_version += 1
 
     def set_hub_binding(self, binding: HubBinding | None) -> None:
         self._hub_binding = binding

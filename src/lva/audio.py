@@ -217,6 +217,11 @@ class Microphone:
                     self.on_block(block)
 
     def start(self) -> None:
+        # Idempotent: PR-020 resumes the mic on Passive/Live transitions, and the
+        # startup path already opened it.  A second start would leak the first
+        # stream and leave two callbacks racing on the same queue.
+        if self._stream is not None:
+            return
         self._stream = sd.InputStream(
             device=self.device_index, channels=1, dtype="float32",
             samplerate=self.rate, blocksize=0, callback=self._callback,

@@ -24,6 +24,10 @@ use process_manager::{FullServicesStatus, ProcessManager};
 use service_registry::ServiceRegistry;
 use settings::{AppSettings, PublicAppSettings, SettingsManager};
 use supervisor::Supervisor;
+use managed_capture::{
+    CaptureExecutionResult, CaptureIntent, CaptureProbe, ManagedCaptureExecutor,
+    SCREENPIPE_SERVICE,
+};
 
 
 // Global activity timestamp for idle VRAM timer
@@ -70,6 +74,69 @@ fn get_service_identity_status(
 pub struct ServiceIdentityReport {
     pub services: Vec<service_registry::ServiceIdentity>,
     pub hub_bind: network_attestation::HubBindAttestation,
+}
+
+/// Probe the Screenpipe REST surface (plan L286/L156).
+///
+/// Read-only: a reachability check plus a version read.  A version the executor
+/// was not written against makes the instance *uncontrollable* rather than
+/// guessed at (plan L1709).
+fn probe_screenpipe_capability() -> CaptureProbe {
+    use std::net::{SocketAddr, TcpStream};
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3030));
+    let reachable = TcpStream::connect_timeout(&addr, std::time::Duration::from_millis(200)).is_ok();
+    if !reachable {
+        return CaptureProbe::unknown();
+    }
+    // The REST surface answers but the executor has no pinned Screenpipe version
+    // contract yet, so the control channel stays unproven.  Reporting it as
+    // controllable would be the false-confidence the plan forbids.
+    CaptureProbe { reachable: true, version_known: false }
+}
+
+/// The capture executor's view of the LVA-managed Screenpipe instance (PR-021).
+///
+/// The WebView needs to show whether LVA can actually control the recorder, and
+/// the answer is a capability, not a boolean: "reachable" is not "controllable",
+/// and an uncontrollable instance must be surfaced rather than implied away
+/// (plan L1345/L1347).
+#[derive(Debug, Clone, Serialize)]
+pub struct CaptureCapabilityReport {
+    pub service: String,
+    pub capability: managed_capture::CaptureCapability,
+    pub last_result: Option<CaptureExecutionResult>,
+}
+
+/// Report whether LVA can control the managed recorder (PR-021).
+#[tauri::command]
+fn get_capture_capability(
+    executor: State<'_, Arc<ManagedCaptureExecutor>>,
+) -> CaptureCapabilityReport {
+    CaptureCapabilityReport {
+        service: SCREENPIPE_SERVICE.to_string(),
+        capability: executor.capability(&probe_screenpipe_capability()),
+        last_result: executor.last_result(),
+    }
+}
+
+/// Run one managed-capture operation and report what actually happened.
+///
+/// `operation_id` is supplied by the caller (Core, once the ack command face is
+/// authorised) so the result can be correlated with the request.  When it is
+/// empty the executor still refuses to invent an id: it echoes back what it got,
+/// and the caller must treat that as an uncorrelated result.
+#[tauri::command]
+fn execute_capture_operation(
+    operation_id: String,
+    intent: String,
+    executor: State<'_, Arc<ManagedCaptureExecutor>>,
+) -> Result<CaptureExecutionResult, String> {
+    let intent = match intent.as_str() {
+        "stop" => CaptureIntent::Stop,
+        "resume" => CaptureIntent::Resume,
+        other => return Err(format!("unknown capture intent: {}", other)),
+    };
+    Ok(executor.execute(&operation_id, intent, &probe_screenpipe_capability()))
 }
 
 /// Read the OS listener table and reduce it to a redacted bind verdict.
@@ -300,6 +367,11 @@ pub fn run() {
     let supervisor = Arc::new(Supervisor::new());
     let bridge = Arc::new(CoreBridge::new());
     let service_registry = Arc::new(ServiceRegistry::new());
+    // PR-021: the managed-capture executor.  It is operation-driven -- Core owns
+    // the decision (PR-020) and this carries it out -- so it is not subscribed to
+    // the mode itself.  The spawner is the existing ProcessManager path, injected
+    // rather than duplicated, so there is one way to start the recorder.
+    let capture_executor = Arc::new(ManagedCaptureExecutor::new((*supervisor).clone()));
     // PR-008: observe the desktop-side services so the typed identity/readiness
     // surface is actually populated.  Observation only -- the registry holds no
     // child handle and can therefore never confer stop authority by itself.
@@ -328,9 +400,12 @@ pub fn run() {
         .manage(supervisor)
         .manage(bridge)
         .manage(service_registry)
+        .manage(capture_executor)
         .invoke_handler(tauri::generate_handler![
             get_services_status,
             get_service_identity_status,
+            get_capture_capability,
+            execute_capture_operation,
             toggle_pet,
             open_settings,
             open_chat,

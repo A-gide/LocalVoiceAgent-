@@ -110,6 +110,17 @@ impl Supervisor {
             let _ = self.stop_spawned(&name, timeout);
         }
     }
+
+    /// Reclaim a held child handle without killing through it.
+    ///
+    /// Test-only: the managed-capture suite must be able to register a live
+    /// sentinel as Spawned, exercise a real stop, and then clean up the sentinels
+    /// whose handles the stop path deliberately consumed.  Production code never
+    /// needs to take a handle back -- ownership is the only thing it consults.
+    #[cfg(test)]
+    pub fn take_child_for_test(&self, name: &str) -> Option<Child> {
+        self.children.lock().unwrap().remove(name)
+    }
 }
 #[cfg(test)]
 mod tests {

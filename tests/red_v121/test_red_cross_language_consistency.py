@@ -181,3 +181,25 @@ def test_python_provider_defaults_actually_use_the_hub_port():
         assert "hub_base_url" in src, (
             f"providers/{name} must default through `config.hub_base_url()`"
         )
+
+
+def test_the_screenpipe_port_agrees_across_languages():
+    """PR-021: the executor and the importer must name the same recorder.
+
+    The managed-capture executor (Rust) and the REST importer (Python) both
+    address one Screenpipe instance.  If those two disagreed, LVA could stop a
+    recorder it believes is running while importing from a different one -- the
+    same one-fact-two-copies defect the Hub port had.
+    """
+    rust = read_text(
+        REPO_ROOT / "apps" / "desktop-shell" / "src-tauri" / "src" / "managed_capture.rs"
+    )
+    python = read_text(LVA / "screenpipe_importer" / "client.py")
+
+    rust_ports = set(re.findall(r"127\.0\.0\.1:(\d{2,5})", rust))
+    python_ports = set(re.findall(r"127\.0\.0\.1:(\d{2,5})", python))
+    assert rust_ports, "the executor must name the Screenpipe REST endpoint"
+    assert rust_ports == python_ports, (
+        f"the executor targets {sorted(rust_ports)} but the importer targets "
+        f"{sorted(python_ports)}; both must address the same recorder"
+    )

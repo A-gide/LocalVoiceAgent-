@@ -46,8 +46,8 @@
         </div>
         <div class="secret-status">
           状态:
-          <span :class="settingsStore.settings?.has_openai_key ? 'text-green' : 'text-gray'">
-            {{ settingsStore.settings?.has_openai_key ? '● 已配置 (写入保护中)' : '○ 未配置' }}
+          <span :class="settingsStore.settings?.cloud_api_key_configured ? 'text-green' : 'text-gray'">
+            {{ settingsStore.settings?.cloud_api_key_configured ? '● 已配置 (写入保护中)' : '○ 未配置' }}
           </span>
         </div>
       </div>

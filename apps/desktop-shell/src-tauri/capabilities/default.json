@@ -1,11 +1,21 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
-  "windows": [
-    "main"
-  ],
+  "description": "Default capability for the LVA desktop shell. S-UI-01 found that core:window:default grants only read APIs, so every window write the UI performs was denied by the ACL and swallowed by a catch that only warned. The operations the UI actually calls are listed explicitly; anything unlisted is denied. The label list covers every window tray.rs creates, because under the Tauri 2 capability model an unlisted window has no capability at all.",
+  "windows": ["main", "settings", "chat", "memory", "services"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "core:window:allow-start-dragging",
+    "core:window:allow-set-position",
+    "core:window:allow-set-ignore-cursor-events",
+    "core:window:allow-set-always-on-top",
+    "core:window:allow-current-monitor",
+    "core:window:allow-primary-monitor",
+    "core:window:allow-available-monitors",
+    "core:window:allow-scale-factor",
+    "core:window:allow-inner-size",
+    "core:window:allow-outer-position",
+    "core:window:allow-set-focus"
   ]
 }
+

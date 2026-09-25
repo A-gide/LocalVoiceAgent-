@@ -15,12 +15,39 @@ import type {
 } from '@/generated/lva-ipc';
 
 export interface PublicAppSettings {
+  /**
+   * Mirrors the Rust `PublicAppSettings` returned by `get_public_settings`.
+   *
+   * The command is invoked by name, so TypeScript cannot check this shape
+   * against the Rust struct.  An earlier version declared `has_openai_key` /
+   * `has_screenpipe_key` / `autostart`, none of which exist on the wire, so
+   * every secret read as "not configured" however many were set.  The parity
+   * test `test_red_settings_dto_parity.py` keeps the two in step.
+   *
+   * Only booleans cross for secrets: the UI must never receive the value
+   * (plan L993).  `autostart` is deliberately absent -- it comes from the
+   * separate `get_autostart_status` command.
+   */
+  llm_mode: string;
   local_gguf_path: string;
-  autostart: boolean;
+  cloud_provider: string;
+  cloud_base_url: string;
+  cloud_api_key_configured: boolean;
+  cloud_model: string;
+  asr_provider: string;
+  asr_base_url: string;
+  asr_api_key_configured: boolean;
+  asr_model: string;
+  tts_provider: string;
+  tts_base_url: string;
+  tts_api_key_configured: boolean;
+  tts_model: string;
+  tts_voice: string;
+  active_character: string;
   pet_dormancy_mode: boolean;
   idle_vram_release_mins: number;
-  has_openai_key: boolean;
-  has_screenpipe_key: boolean;
+  /** Settings aggregate revision, quoted as a CAS precondition (plan L397). */
+  settings_revision: number;
 }
 
 export interface ServiceProcessInfo {
@@ -187,12 +214,25 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
     }
     case 'get_public_settings':
       return {
+        llm_mode: 'local',
         local_gguf_path: 'C:\\Models\\Spark-X2.5-4B-Q8.gguf',
-        autostart: true,
+        cloud_provider: 'openai',
+        cloud_base_url: '',
+        cloud_api_key_configured: false,
+        cloud_model: 'gpt-4o-mini',
+        asr_provider: 'sensevoice',
+        asr_base_url: '',
+        asr_api_key_configured: false,
+        asr_model: 'sensevoice-small',
+        tts_provider: 'melotts',
+        tts_base_url: '',
+        tts_api_key_configured: false,
+        tts_model: 'melotts-zh-en',
+        tts_voice: 'default',
+        active_character: 'haru',
         pet_dormancy_mode: true,
         idle_vram_release_mins: 15,
-        has_openai_key: false,
-        has_screenpipe_key: false,
+        settings_revision: 0,
       } as T;
     case 'get_services_status':
       return {

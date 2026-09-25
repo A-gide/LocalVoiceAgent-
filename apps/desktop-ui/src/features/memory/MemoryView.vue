@@ -47,6 +47,28 @@
           </div>
         </div>
 
+        <!--
+          Temporal parse provenance (PR-029 / L1424 "provenance/timezone").
+          A relative expression the parser could not resolve is shown as a
+          degraded state instead of being silently dropped: the user needs to
+          know the search anchor is approximate, not absent.
+        -->
+        <div class="card-meta-extra">
+          <span v-if="item.temporal_expression" class="temporal-tag">
+            时间表达: {{ item.temporal_expression }}
+          </span>
+          <span
+            v-if="isParseDegraded(item)"
+            class="degraded-tag"
+            title="该时间表达无法完全解析，检索按降级范围进行"
+          >
+            ⚠️ 时间解析降级 (parse degraded)
+          </span>
+          <span v-if="item.range_start_utc" class="range-tag">
+            检索范围: {{ formatRange(item.range_start_utc, item.range_end_utc) }}
+          </span>
+        </div>
+
         <div class="card-actions">
           <button class="btn-correct" @click="openCorrectModal(item)">
             ✏️ 修正
@@ -94,6 +116,23 @@ const queryText = ref('');
 const correctingItem = ref<MemoryItem | null>(null);
 const correctText = ref('');
 const correctReason = ref('');
+
+/**
+ * A temporal expression that produced no usable range is a *degraded* parse:
+ * the Core still answered, but it could not anchor the query in time, so the
+ * user must be told rather than left believing the range was exact.
+ */
+function isParseDegraded(item: MemoryItem): boolean {
+  const expression = (item.temporal_expression || '').trim();
+  if (!expression) return false;
+  return !item.range_start_utc || !item.range_end_utc;
+}
+
+function formatRange(start: string, end?: string | null): string {
+  const from = start.replace('T', ' ').replace('Z', ' UTC');
+  if (!end) return `${from} → 至今`;
+  return `${from} → ${end.replace('T', ' ').replace('Z', ' UTC')}`;
+}
 
 async function handleSearch() {
   await memory.search(queryText.value);
@@ -241,6 +280,32 @@ async function confirmDelete(eventId: string) {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.card-meta-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.temporal-tag {
+  background: #1e3a5f;
+  color: #93c5fd;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.degraded-tag {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.range-tag {
+  color: #64748b;
 }
 
 .btn-correct, .btn-delete {

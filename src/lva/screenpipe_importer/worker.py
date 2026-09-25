@@ -65,6 +65,8 @@ class ScreenpipeImportWorker:
             raise ValueError("IMPORT_SCHEMA_UNSUPPORTED: Screenpipe search response must be a list")
 
         imported_count = 0
+        redacted_count = 0
+        skipped_count = 0
         max_seen_ts = watermark
         now_us = int(datetime.now(timezone.utc).timestamp() * 1_000_000)
 
@@ -74,10 +76,18 @@ class ScreenpipeImportWorker:
                 if not isinstance(item, dict):
                     raise ValueError("IMPORT_SCHEMA_UNSUPPORTED: Item must be a dictionary")
 
-                normalized = normalize_screenpipe_audio_item(item)
-                occ_us = normalized["occurred_at_utc_us"]
-                if occ_us <= watermark:
+                # A single unusable record must not abort the whole page: the page
+                # transaction is what guarantees atomicity, and a record whose
+                # timestamp cannot be parsed has no safe position in the timeline.
+                # It is skipped and the watermark is left where it was, so the
+                # record is retried rather than silently passed over.
+                try:
+                    normalized = normalize_screenpipe_audio_item(item)
+                except ValueError as exc:
+                    log.warning("Skipping unimportable Screenpipe record: %s", exc)
+                    skipped_count += 1
                     continue
+                occ_us = normalized["occurred_at_utc_us"]
 
                 # Idempotent deduplication (I17): check unique constraint
                 cur = self.repo.conn.execute(
@@ -85,7 +95,32 @@ class ScreenpipeImportWorker:
                     (normalized["external_source"], normalized["external_id"]),
                 )
                 if cur.fetchone() is not None:
-                    log.debug("Event already exists, skipping duplicate: %s", normalized["external_id"])
+                    # The event is already stored, but the source may have marked it
+                    # redacted *since* the first import.  Plan L896 requires that mark
+                    # to be honoured, so the duplicate check cannot simply skip: it
+                    # applies the redaction as a new revision (raw_text stays intact
+                    # per I06).
+                    if normalized.get("redacted"):
+                        if self.repo.apply_source_redaction(
+                            normalized["external_source"],
+                            normalized["external_id"],
+                            commit=False,
+                        ):
+                            redacted_count += 1
+                            log.info(
+                                "Applied a later source redaction to %s",
+                                normalized["external_id"],
+                            )
+                    else:
+                        log.debug("Event already exists, skipping duplicate: %s", normalized["external_id"])
+                    continue
+
+                # A record at or before the watermark is only skipped when it is a
+                # *true* replay.  Using `<=` dropped a record that shared a
+                # microsecond with the checkpoint: the checkpoint is the highest
+                # timestamp already imported, so equality means "possibly the same
+                # record", which the unique constraint above has already resolved.
+                if occ_us < watermark:
                     continue
 
                 self.repo.append_event(
@@ -103,6 +138,10 @@ class ScreenpipeImportWorker:
                     provenance=normalized["provenance"],
                     external_source=normalized["external_source"],
                     external_id=normalized["external_id"],
+                    # Do not commit per record: the page must be one transaction
+                    # (plan 7.2), or a page whose later record is invalid leaves the
+                    # earlier ones committed.
+                    commit=False,
                 )
                 imported_count += 1
                 if occ_us > max_seen_ts:
@@ -158,4 +197,3 @@ class ScreenpipeSqliteAdapter:
             raise ValueError("IMPORT_SCHEMA_UNSUPPORTED: Screenpipe DB missing expected audio tables")
 
         return conn
-

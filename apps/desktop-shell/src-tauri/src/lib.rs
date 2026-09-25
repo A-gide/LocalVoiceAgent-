@@ -155,14 +155,29 @@ fn observe_hub_bind_attestation() -> network_attestation::HubBindAttestation {
         }
         _ => {
             // Cannot read the table -> cannot prove anything -> fail closed.
-            let mut att = attest_for_port(&[], 0, &attestation_id).0;
+            // An empty row set cannot map a process either, so the owner is
+            // genuinely absent here rather than discarded.
+            let (mut att, _owner) = attest_for_port(&[], 0, &attestation_id);
             att.reason_code = Some(HubBindReason::ProbeFailed);
             return att;
         }
     };
 
     let rows = parse_listener_table(&table);
-    attest_for_port(&rows, HUB_CONTROL_PORT, &attestation_id).0
+    // The owner PID must be kept: plan L1213 requires the control port to be
+    // *associated with the identified Hub process*, and a bare "something is
+    // listening on 8080" cannot tell the Hub apart from any other service that
+    // happens to hold the port.
+    let (mut attestation, owner_pid) = attest_for_port(&rows, hub_control_port(), &attestation_id);
+    if attestation.status == network_attestation::AttestationStatus::VerifiedLoopback
+        && owner_pid.is_none()
+    {
+        // Loopback-only but no process could be mapped: the bind is real but the
+        // *identity* is unproven, which plan L1256/L1213 treat as not verified.
+        attestation.status = network_attestation::AttestationStatus::UnverifiedBind;
+        attestation.reason_code = Some(HubBindReason::ProcessUnmapped);
+    }
+    attestation
 }
 
 /// The Hub control port whose effective bind must be attested.
@@ -172,7 +187,23 @@ fn observe_hub_bind_attestation() -> network_attestation::HubBindAttestation {
 /// configured `webPort` (and Core's `HUB_PORT`), because probing a port with no
 /// listener yields `UNVERIFIED_BIND` and would close the control gate permanently
 /// even against a healthy Hub.
-const HUB_CONTROL_PORT: u16 = 8080;
+ const HUB_CONTROL_PORT: u16 = 8080;
+
+ /// The Hub port to attest, from the same source Core reads.
+ ///
+ /// `HUB_CONTROL_PORT` is the frozen default (plan L527); `LVA_HUB_PORT` is the
+ /// same variable `config.HUB_PORT` reads.  Honouring it here is what keeps the
+ /// two ends from disagreeing when the Hub is not on the default port -- Rust and
+ /// Core cannot share code, so the shared *input* is the single source, and the
+ /// constant is only the fallback both sides agree on.  Probing a port with no
+ /// listener yields `UNVERIFIED_BIND` and would close the control gate even
+ /// against a healthy Hub.
+fn hub_control_port() -> u16 {
+    std::env::var("LVA_HUB_PORT")
+        .ok()
+        .and_then(|v| v.trim().parse::<u16>().ok())
+        .unwrap_or(HUB_CONTROL_PORT)
+}
 
 /// How often the effective bind is re-attested.
 ///
@@ -324,6 +355,70 @@ fn clear_secret(
     sm.clear_secret_checked(&secret_type, settings_revision)
 }
 
+/// The commands the WebView is allowed to issue (plan L470-479, frozen list).
+///
+/// `send_core_command` is the WebView's only route to Core, so this list is the
+/// renderer's entire authority.  It deliberately excludes `hub.attest_bind`: that
+/// command reports what the OS listener table says, which only this process can
+/// observe, and plan L1256 makes Rust its sole producer.  Forwarding it from the
+/// renderer let the WebView mint a `VERIFIED_LOOPBACK` verdict and open the Hub
+/// control gate.
+const WEBVIEW_COMMANDS: &[&str] = &[
+    "runtime.get_snapshot",
+    "runtime.set_mode",
+    "runtime.restore_mode",
+    "turn.send_text",
+    "turn.cancel",
+    "hub.refresh",
+    "hub.bind_model",
+    "hub.sleep_bound_model",
+    "settings.update_public",
+    "settings.set_secret",
+    "settings.clear_secret",
+    "memory.search",
+    "memory.correct",
+    "memory.hard_delete",
+    "service.retry",
+    "diagnostics.export_redacted",
+    "playback.set_muted",
+];
+
+/// Authority-only commands: reported by this process, never by the renderer.
+///
+/// Named explicitly so the exclusion above is visible rather than accidental, and
+/// so a test can assert the two lists stay disjoint.
+const PROCESS_AUTHORITY_COMMANDS: &[&str] = &["hub.attest_bind"];
+
+#[cfg(test)]
+mod webview_authority_tests {
+    use super::{PROCESS_AUTHORITY_COMMANDS, WEBVIEW_COMMANDS};
+
+    #[test]
+    fn the_webview_may_not_issue_an_authority_command() {
+        // Plan L1256: the bind verdict reports what the OS listener table says,
+        // which only this process observes.  If the renderer could issue it, the
+        // gate that decides whether Hub control may run at all would be openable
+        // from the WebView.
+        for cmd in PROCESS_AUTHORITY_COMMANDS {
+            assert!(
+                !WEBVIEW_COMMANDS.contains(cmd),
+                "{} is authority-only and must not be forwardable from the WebView",
+                cmd
+            );
+        }
+    }
+
+    #[test]
+    fn the_webview_allowlist_is_the_frozen_command_list() {
+        // Plan L470-479 is the closed list; a command appearing here without a
+        // corresponding plan line would silently widen the renderer's authority.
+        assert!(WEBVIEW_COMMANDS.contains(&"hub.bind_model"));
+        assert!(WEBVIEW_COMMANDS.contains(&"turn.send_text"));
+        assert!(WEBVIEW_COMMANDS.contains(&"playback.set_muted"));
+        assert_eq!(WEBVIEW_COMMANDS.len(), 17, "the list must not drift silently");
+    }
+}
+
 #[tauri::command]
 async fn send_core_command(
     cmd: serde_json::Value,
@@ -333,6 +428,20 @@ async fn send_core_command(
     // command. send_command blocks until the correlated command_result arrives,
     // so it runs on a blocking worker: a non-async command would execute on the
     // WebView IPC thread and stall the whole UI for up to the command timeout.
+    //
+    // The WebView may issue only the commands the frozen list grants it (plan
+    // L470-479).  Forwarding anything the renderer asks for made the shell a
+    // generic Core proxy: a verdict about the OS listener table could be minted
+    // from the renderer and would open the Hub control gate (plan L1256 makes
+    // Rust the *only* producer of that verdict).
+    let cmd_type = cmd.get("type").and_then(|v| v.as_str()).unwrap_or_default().to_string();
+    if !WEBVIEW_COMMANDS.contains(&cmd_type.as_str()) {
+        return Err(format!(
+            "command '{}' is not available to the WebView; only the frozen command \
+             list (plan L470-479) may be issued from the renderer",
+            cmd_type
+        ));
+    }
     let bridge = Arc::clone(&bridge);
     tauri::async_runtime::spawn_blocking(move || bridge.send_command(cmd))
         .await

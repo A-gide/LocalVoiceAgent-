@@ -7,6 +7,21 @@ import {
 } from '@/bridge/tauri-bridge';
 import { useRuntimeStore } from './runtime';
 
+/**
+ * One Hub inventory entry as the Core projects it (PR-026).
+ *
+ * Deliberately narrow: the Hub launch profile (ngl/context/mmproj/extraParams)
+ * is not part of this shape, so the WebView never receives a value the plan
+ * says must not be shown (L993 / PR-026 acceptance).
+ */
+export interface HubModelEntry {
+  model_id: string;
+  name: string;
+  alias?: string;
+  size_bytes?: number;
+  supports_vision?: boolean;
+}
+
 export const useSettingsStore = defineStore('settings', () => {
   const runtime = useRuntimeStore();
   const settings = ref<PublicAppSettings | null>(null);
@@ -14,6 +29,23 @@ export const useSettingsStore = defineStore('settings', () => {
   const autostart = ref<boolean>(false);
   const isLoading = ref<boolean>(false);
   const lastOpMessage = ref<string | null>(null);
+
+  /**
+   * Hub inventory as the Core projects it (PR-026).  Only identity, size and
+   * the alias cross the wire: the Hub launch profile (ngl/context/mmproj) is
+   * deliberately absent, so the UI cannot render a parameter it must not show
+   * and cannot offer to change one LVA is forbidden to guess (plan L593).
+   */
+  const hubModels = ref<HubModelEntry[]>([]);
+  /** Model ids the Hub currently has loaded; null means "could not be read". */
+  const hubLoaded = ref<string[] | null>(null);
+  const isRefreshingHub = ref<boolean>(false);
+  const hubProgress = ref<number | null>(null);
+  /** Set when a bind came back needing confirmation to stop a preexisting model. */
+  const hubConflict = ref<string | null>(null);
+  const hubError = ref<string | null>(null);
+  /** The last bind that failed, so the retry button re-issues exactly that one. */
+  const lastBindAttempt = ref<{ modelId: string; force: boolean } | null>(null);
 
   async function loadSettings() {
     isLoading.value = true;
@@ -53,13 +85,30 @@ export const useSettingsStore = defineStore('settings', () => {
       const res = await TauriBridge.sendCoreCommand('hub.refresh', {
         type: 'hub.refresh',
       });
-      lastOpMessage.value = res.status === 'applied' ? 'Hub 模型列表已刷新' : 'Hub 刷新被拒绝';
+      // `hub.refresh` answers `accepted` (the read happened), not `applied`;
+      // testing for `applied` reported every successful refresh as refused.
+      if (res.status === 'accepted' || res.status === 'applied') {
+        const data = (res.data || {}) as { models?: HubModelEntry[]; loaded?: string[] | null };
+        hubModels.value = data.models || [];
+        hubLoaded.value = data.loaded ?? null;
+        hubError.value = null;
+        lastOpMessage.value = `Hub 模型列表已刷新 (${hubModels.value.length} 个)`;
+      } else {
+        hubError.value = res.error?.message || 'Hub 刷新被拒绝';
+        lastOpMessage.value = `Hub 刷新被拒绝: ${hubError.value}`;
+      }
     } catch (e: any) {
+      hubError.value = e?.toString() || '刷新失败';
       lastOpMessage.value = `刷新失败: ${e?.toString()}`;
     }
   }
 
   async function bindHubModel(modelId: string, force = false) {
+    isRefreshingHub.value = true;
+    hubProgress.value = 0;
+    hubConflict.value = null;
+    hubError.value = null;
+    lastBindAttempt.value = { modelId, force };
     try {
       const res = await TauriBridge.sendCoreCommand('hub.bind_model', {
         type: 'hub.bind_model',
@@ -68,15 +117,49 @@ export const useSettingsStore = defineStore('settings', () => {
       },
         { aggregate: 'hub_binding', revision: runtime.state.hub_binding_revision }
       );
-      if (res.status === 'applied') {
+      if (res.status === 'applied' || res.status === 'accepted') {
           runtime.applyResult(res);
         lastOpMessage.value = `已绑定模型 ${modelId}`;
       } else {
-        lastOpMessage.value = `绑定模型失败: ${res.error?.message || '未知错误'}`;
+        const code = res.error?.code || '';
+        const message = res.error?.message || '未知错误';
+        if (code === 'PROFILE_REQUIRED') {
+          // Plan L593: LVA must not invent -ngl/-c/mmproj, so the user is sent
+          // to the Hub to define the launch profile instead.
+          hubError.value = `该模型在 Hub 中缺少启动配置 (PROFILE_REQUIRED)。请在 Hub 的模型配置中保存 profile 后重试。`;
+        } else {
+          hubError.value = message;
+        }
+        lastOpMessage.value = `绑定模型失败: ${hubError.value}`;
       }
     } catch (e: any) {
+      hubError.value = e?.toString() || '绑定异常';
       lastOpMessage.value = `绑定异常: ${e?.toString()}`;
+    } finally {
+      isRefreshingHub.value = false;
+      hubProgress.value = null;
     }
+  }
+
+  /**
+   * Record the conflict the Core reported on the binding (plan 5.5).
+   *
+   * The conflict is not a failure -- the load proceeds and the old model stays
+   * resident -- but stopping that old model requires the user's explicit
+   * confirmation, which is what `force` carries.  The Core publishes the code on
+   * `hub_binding.last_error`, so it is read from the state rather than invented.
+   */
+  function noteHubBinding(lastError: string | null | undefined) {
+    if (lastError && lastError.includes('MODEL_CONFLICT_REQUIRES_CONFIRMATION')) {
+      hubConflict.value = lastError;
+    }
+  }
+
+  /** Re-issue the last bind that failed, so the retry button is honest. */
+  async function retryBind() {
+    const attempt = lastBindAttempt.value;
+    if (!attempt) return;
+    await bindHubModel(attempt.modelId, attempt.force);
   }
 
   async function sleepBoundModel() {
@@ -101,12 +184,21 @@ export const useSettingsStore = defineStore('settings', () => {
     autostart,
     isLoading,
     lastOpMessage,
+    hubModels,
+    hubLoaded,
+    isRefreshingHub,
+    hubProgress,
+    hubConflict,
+    hubError,
+    lastBindAttempt,
     loadSettings,
     setSecret,
     clearSecret,
     toggleAutostart,
     refreshHubModels,
     bindHubModel,
+    noteHubBinding,
+    retryBind,
     sleepBoundModel,
   };
 });

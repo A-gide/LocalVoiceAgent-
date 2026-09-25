@@ -76,6 +76,30 @@ export const useRuntimeStore = defineStore('runtime', () => {
   const isSyncing = ref<boolean>(false);
   const lastError = ref<string | null>(null);
 
+  /**
+   * Observers told when the Core instance changes (PR-028).
+   *
+   * The chat store owns pending-turn state but must not import this store's
+   * internals, so it registers a listener here.  Deliberately a plain callback
+   * list rather than a store-to-store import, which would create a cycle.
+   */
+  const coreInstanceListeners: Array<(instanceId: string) => void> = [];
+
+  function onCoreInstanceChanged(listener: (instanceId: string) => void): void {
+    coreInstanceListeners.push(listener);
+  }
+
+  function notifyCoreInstance(instanceId: string | null | undefined): void {
+    if (!instanceId) return;
+    for (const listener of coreInstanceListeners) {
+      try {
+        listener(instanceId);
+      } catch (err) {
+        console.warn('[CoreInstance] listener failed', err);
+      }
+    }
+  }
+
   // Computeds
   const currentMode = computed<Mode>(() => state.value.mode);
   const isLive = computed(() => state.value.mode === 'live');
@@ -123,6 +147,57 @@ export const useRuntimeStore = defineStore('runtime', () => {
 
   function mutePlayback() {
     setMuted(true);
+  }
+
+  /**
+   * Voice preview (PR-027).
+   *
+   * Deliberately uses the existing `turn.send_text` command rather than a new
+   * preview command: the frozen command list (plan L470-479) is closed, and a
+   * preview that played a UI-local sound would prove nothing about the real TTS
+   * path -- the same shape as the Output Mute defect, where the icon changed and
+   * the speakers kept playing.  Sending a turn makes the user hear exactly what
+   * the assistant would say, through the real Core path.
+   */
+  async function previewVoice(
+    text = '你好，这是当前音色的试听。'
+  ): Promise<boolean> {
+    try {
+      const result = await TauriBridge.sendCoreCommand('turn.send_text', {
+        type: 'turn.send_text',
+        text,
+      });
+      if (result.status === 'applied' || result.status === 'accepted') {
+        return true;
+      }
+      lastError.value = result.error?.message || 'Voice preview was refused';
+      return false;
+    } catch (err: any) {
+      lastError.value = err?.toString() || 'Voice preview failed';
+      return false;
+    }
+  }
+
+  /**
+   * Stop the speaker now (PR-027 cancel).
+   *
+   * `turn.cancel` is what the Core's interrupt path consumes, and that path is
+   * what actually flushes the player -- a local flag would leave the audio
+   * running to the end of the sentence.
+   */
+  async function cancelPlayback(reason = 'user_cancel'): Promise<void> {
+    try {
+      const result = await TauriBridge.sendCoreCommand('turn.cancel', {
+        type: 'turn.cancel',
+        turn_id: state.value.current_turn ?? null,
+        reason,
+      });
+      if (result.status !== 'applied' && result.status !== 'accepted') {
+        lastError.value = result.error?.message || 'Cancel was refused';
+      }
+    } catch (err: any) {
+      lastError.value = err?.toString() || 'Cancel failed';
+    }
   }
 
   async function fetchSnapshotState(): Promise<RuntimeState | null> {
@@ -226,6 +301,12 @@ export const useRuntimeStore = defineStore('runtime', () => {
   }
 
   function handleEvent(envelope: EventEnvelope) {
+    // PR-028 acceptance ("Core restart 清理 pending"): a different runtime
+    // instance means the previous Core died, so any turn the chat store was
+    // waiting on can never complete.  Observed here because this is the single
+    // place every envelope passes through.
+    notifyCoreInstance(envelope.runtime_instance_id);
+
     // Gap check: Part 8.1
     if (lastSequence.value > 0 && envelope.sequence > lastSequence.value + 1) {
       console.warn(
@@ -238,6 +319,7 @@ export const useRuntimeStore = defineStore('runtime', () => {
     switch (envelope.payload.type) {
       case 'runtime.snapshot':
         state.value = envelope.payload.state as WireState;
+        notifyCoreInstance(state.value.runtime_instance_id);
         break;
       case 'mode.changed':
         state.value.mode = envelope.payload.new_mode;
@@ -304,6 +386,8 @@ export const useRuntimeStore = defineStore('runtime', () => {
     isPlaybackMuted,
     setMuted,
     mutePlayback,
+    previewVoice,
+    cancelPlayback,
     boundModel,
     hubStatus,
     fetchSnapshot,
@@ -311,5 +395,6 @@ export const useRuntimeStore = defineStore('runtime', () => {
     restoreMode,
     applyResult,
     handleEvent,
+    onCoreInstanceChanged,
   };
 });

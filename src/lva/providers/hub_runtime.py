@@ -20,11 +20,18 @@ class HubRuntimeSaga:
         inference_client: LlamaCppHubInferenceClient,
         on_binding_changed: Callable[[HubBinding], None] | None = None,
         on_interrupt: Callable[[str], int] | None = None,
+        on_operation_progress: Callable[[str, float, str], None] | None = None,
     ) -> None:
         self.control = control_client
         self.inference = inference_client
         self.on_binding_changed = on_binding_changed
         self.on_interrupt = on_interrupt
+        #: PR-026/L993: the Conversation Model UI must show operation progress,
+        #: and `hub.operation_progress` had no producer at all -- the event type
+        #: existed in the contract and nothing ever emitted one.  The Core owns
+        #: publishing (it is the only event emitter), so the saga reports and the
+        #: owner decides; the same injection shape as `on_binding_changed`.
+        self.on_operation_progress = on_operation_progress
 
         self.binding = HubBinding(
             desired_model_id=None,
@@ -41,6 +48,10 @@ class HubRuntimeSaga:
         #: `last_error` from its argument, so anything stored there is erased by the
         #: next status change.
         self.pending_conflict: str | None = None
+        #: Last inventory projection returned by `refresh_inventory()`.
+        #: Kept so `hub.refresh` can answer with the list it just read instead of
+        #: re-querying the Hub inside the synchronous dispatcher.
+        self.inventory: dict | None = None
 
     def _update_status(
         self,
@@ -51,6 +62,120 @@ class HubRuntimeSaga:
         self.binding.last_error = last_error
         if self.on_binding_changed:
             self.on_binding_changed(self.binding)
+
+    def _report_progress(self, model_id: str, percent: float, message: str) -> None:
+        """Report operation progress to the owner (PR-026 / plan L993).
+
+        The saga must not emit events itself -- it holds no event bus -- so it
+        reports and the Core publishes.  A missing callback is not an error: the
+        saga is also constructed in tests and probes with no UI attached.
+        """
+        if self.on_operation_progress:
+            self.on_operation_progress(model_id, percent, message)
+
+    def _pin_inference(self, model_id: str) -> None:
+        """Pin the bound model on the inference client (PR-014).
+
+        Single helper because the pin must happen on **every** successful commit
+        path.  The already-loaded early return previously omitted it, so the
+        binding named the new model while requests still carried the old
+        ``X-LVA-Bound-Model`` header.
+        """
+        if hasattr(self.inference, "bind_model"):
+            self.inference.bind_model(model_id)
+
+    def _fail_switch(self, target_model_id: str, exc: Exception, previous: HubBinding) -> None:
+        """Settle a failed switch as FAILED/DEGRADED and keep a rollback target.
+
+        Plan L636: any failed step leaves the binding FAILED/DEGRADED, the old turn
+        is not resurrected, and re-binding the old model needs an explicit rollback
+        operation.  A propagated exception previously left the status at
+        ``verifying`` -- a hung state the UI would render as "in progress" forever.
+        """
+        err_msg = (
+            f"{ErrorCode.MODEL_LOAD_FAILED.value}: model switch to "
+            f"{target_model_id} failed during verification: {exc}"
+        )
+        log.error(err_msg)
+        self._update_status("failed", last_error=err_msg)
+        self.rollback(previous)
+        self._report_progress(target_model_id, 100.0, "failed")
+
+    # ------------------------------------------------- inventory (PR-026)
+    #: Hub profile keys that must never cross into the UI (plan L993 / PR-026
+    #: acceptance: "不展示 ngl/context/mmproj").  They are Hub launch details, and
+    #: the UI must route the user to the Hub to change them.
+    _PROFILE_ONLY_KEYS = frozenset(
+        {
+            "ngl",
+            "context",
+            "contextLength",
+            "mmproj",
+            "mg",
+            "extraParams",
+            "cmd",
+            "envVars",
+            "llamaBinPathSelect",
+            "device",
+            "node",
+        }
+    )
+
+    @classmethod
+    def _project_model(cls, entry: dict) -> dict:
+        """Reduce a Hub inventory entry to the identity the UI may see.
+
+        Read-only projection: unknown keys are dropped rather than carried, so a
+        future Hub field cannot leak a launch parameter into the WebView by
+        default.  Only identity, size and the alias are published.
+        """
+        model_id = entry.get("modelId") or entry.get("id") or entry.get("name")
+        projected = {
+            "model_id": model_id,
+            "name": entry.get("name") or model_id,
+        }
+        if entry.get("alias"):
+            projected["alias"] = entry["alias"]
+        if isinstance(entry.get("size"), int):
+            projected["size_bytes"] = entry["size"]
+        if "supportsVision" in entry:
+            projected["supports_vision"] = bool(entry["supportsVision"])
+        return projected
+
+    async def refresh_inventory(self) -> dict:
+        """Read the Hub inventory + loaded set and cache the UI-safe projection.
+
+        PR-026 needs `list` before it can offer `bind`: the UI cannot ask the Hub
+        itself (I21 -- management is Core-only), and the frozen command list has
+        no separate inventory command, so `hub.refresh` returns this through its
+        command result.
+        """
+        models = await self.control.list_models()
+        try:
+            loaded = await self.control.list_loaded()
+        except Exception as exc:  # noqa: BLE001 - inventory is still useful
+            # An unreadable loaded set must not be reported as "nothing is
+            # loaded": that is the fail-open shape B10 records for the VRAM path.
+            log.warning("Failed to read the loaded set during refresh: %s", exc)
+            loaded = None
+
+        loaded_ids = (
+            sorted(
+                {
+                    str(item.get("modelId") or item.get("id") or "")
+                    for item in loaded
+                    if (item.get("modelId") or item.get("id"))
+                }
+            )
+            if loaded is not None
+            else None
+        )
+        data = {
+            "models": [self._project_model(m) for m in models],
+            "loaded": loaded_ids,
+        }
+        self.inventory = data
+        return data
 
     def consume_conflict(self) -> str | None:
         """Return and clear the pending conflict, so it is reported exactly once.
@@ -107,14 +232,21 @@ class HubRuntimeSaga:
         self,
         target_model_id: str,
         force_stop_preexisting: bool = False,
+        verify_timeout: float = 30.0,
     ) -> HubBinding:
         """Execute explicit model change saga according to Part 5.5."""
         log.info("Starting model switch saga -> target: %s", target_model_id)
         # Remember where we were so a failure can roll back rather than leaving the
         # binding describing a model that is not actually serving.
         previous = self.binding.model_copy(deep=True)
+        # Record it *before* any work: plan L636 lets a failure be answered with an
+        # explicit rollback operation, and that needs a target to roll back to.
+        # Storing it only in the failure path left a verification timeout with no
+        # recorded previous binding at all.
+        self.previous_binding = previous.model_copy(deep=True)
         self.binding.desired_model_id = target_model_id
         self._update_status("preparing")
+        self._report_progress(target_model_id, 0.0, "preparing")
 
         # Step 1: PREPARE - cancel current turn and bump epoch
         if self.on_interrupt:
@@ -135,17 +267,52 @@ class HubRuntimeSaga:
         if target_model_id in loaded_ids:
             log.info("Target model %s is already loaded in Hub", target_model_id)
             self._update_status("verifying")
-            await self._verify_target(target_model_id)
+            self._report_progress(target_model_id, 50.0, "verifying")
+            try:
+                await self._verify_target(target_model_id, timeout=verify_timeout)
+            except Exception as exc:
+                # A verification failure must settle the binding (plan L636:
+                # FAILED/DEGRADED).  Letting it propagate left the status at
+                # `verifying`, which the UI shows forever as "in progress".
+                self._fail_switch(target_model_id, exc, previous)
+                raise
             self.binding.active_model_id = target_model_id
             self.binding.load_origin = "preexisting"
+            # Pin the model on the inference client.  This branch returns early and
+            # previously skipped the pin, so the binding named the new model while
+            # requests kept carrying the previous X-LVA-Bound-Model header -- the
+            # "a switch silently answers from the previous model" case.
+            self._pin_inference(target_model_id)
             self._update_status("ready")
+            self._report_progress(target_model_id, 100.0, "ready")
             return self.binding
+
+        # Step 2b: PROFILE RESOLUTION (before any destructive action).
+        # Plan 5.4 reads the Hub-saved profile (step 2) before issuing the load
+        # (step 3); stopping the old model first meant a missing profile destroyed
+        # a working model and left the binding naming a model that was already
+        # stopped.  Resolving it here makes the failure harmless.
+        try:
+            profile = await self.control.get_profile(target_model_id)
+        except Exception as exc:
+            missing_profile = "profile" in str(exc).lower() and (
+                "not found" in str(exc).lower()
+                or "missing" in str(exc).lower()
+                or "empty" in str(exc).lower()
+            )
+            code = ErrorCode.PROFILE_REQUIRED if missing_profile else ErrorCode.MODEL_LOAD_FAILED
+            err_msg = f"{code.value}: failed to load model {target_model_id}: {exc}"
+            log.exception(err_msg)
+            self._update_status("failed", last_error=err_msg)
+            self.rollback(previous)
+            raise
 
         # Old model cleanup if authorized
         old_model = self.binding.active_model_id
         if old_model and old_model in loaded_ids:
             if self.binding.load_origin == "loaded_by_lva" or force_stop_preexisting:
                 self._update_status("stopping")
+                self._report_progress(target_model_id, 20.0, "stopping")
                 try:
                     await self.control.stop_model(old_model)
                     log.info("Stopped old model %s", old_model)
@@ -169,8 +336,8 @@ class HubRuntimeSaga:
 
         # Step 3: LOAD TARGET
         self._update_status("loading")
+        self._report_progress(target_model_id, 40.0, "loading")
         try:
-            profile = await self.control.get_profile(target_model_id)
             await self.control.load_model(target_model_id, profile)
         except Exception as exc:
             # A model whose Hub profile is missing must be reported as
@@ -190,7 +357,12 @@ class HubRuntimeSaga:
 
         # Step 4: VERIFY
         self._update_status("verifying")
-        await self._verify_target(target_model_id)
+        self._report_progress(target_model_id, 70.0, "verifying")
+        try:
+            await self._verify_target(target_model_id, timeout=verify_timeout)
+        except Exception as exc:
+            self._fail_switch(target_model_id, exc, previous)
+            raise
 
         # Step 5: COMMIT BINDING
         self.binding.active_model_id = target_model_id
@@ -198,12 +370,12 @@ class HubRuntimeSaga:
         # Pin the model on the inference client too.  Without this the client keeps
         # answering from the Hub default, which is exactly the "a switch silently
         # answers from the previous model" case the client documents as guarded.
-        if hasattr(self.inference, "bind_model"):
-            self.inference.bind_model(target_model_id)
+        self._pin_inference(target_model_id)
         self._update_status("ready")
         # Surface any conflict the caller should know about (B5).  Done after the
         # status settles, because `_update_status` assigns `last_error` itself.
         self.publish_conflict()
+        self._report_progress(target_model_id, 100.0, "ready")
         log.info("Model switch saga successfully committed for %s", target_model_id)
         return self.binding
 

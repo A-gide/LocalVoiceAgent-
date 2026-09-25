@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
@@ -195,8 +196,22 @@ def test_server_wiring_does_not_recurse():
     import os
     import tempfile
 
-    os.environ.setdefault("LVA_ROOT", tempfile.mkdtemp())
+    # `lva.config` resolves ROOT once, at import time, so `setdefault` is a no-op
+    # whenever any earlier suite already imported the package -- the Journal then
+    # lands in the repository root and the test fails purely by suite ordering
+    # (observed: `pytest tests/invariants tests/red_v121/test_red_bind_attestation.py`).
+    # Assign unconditionally and re-resolve the paths that cached the old root.
+    root = tempfile.mkdtemp(prefix="lva-attest-")
+    os.environ["LVA_ROOT"] = root
     from lva import server as server_mod
+    from lva import config as config_mod
+
+    # Rebinding the module constant is what makes the assertion below about the
+    # *test's* isolation rather than about which suite happened to run first.
+    config_mod.ROOT = Path(root)
+    config_mod.DATA = config_mod.ROOT / "data"
+    config_mod.DATA.mkdir(parents=True, exist_ok=True)
+    config_mod.DB_PATH = config_mod.DATA / "memory.db"
 
     server_mod._runtime = None
     server_mod._hub_saga = None

@@ -176,7 +176,8 @@ def main() -> int:
     if not health.get("ok"):
         print(f"PRECONDITION FAILED: no LLM backend at {C.LLM_BASE_URL}")
         print(f"  {health.get('error')}")
-        print("  start it with: venv\Scripts\python.exe scripts\llm_serve.py --start spark-x2.5-4b-q8-0")
+        print("  start it in the Hub instead: LVA no longer starts a llama.cpp backend itself ")
+        print("  (PR-015 removed the direct llama lifecycle; the Hub owns the model runtime).")
         return 2
     print(f"LLM backend ok: {health.get('models')} ({health.get('latency_ms')} ms)")
 

@@ -201,6 +201,12 @@ def get_hub_saga() -> "HubRuntimeSaga":
             inference_client=LlamaCppHubInferenceClient(base_url=base_url, api_key=hub_api_key),
             on_binding_changed=lambda binding: get_runtime().set_hub_binding(binding),
             on_interrupt=lambda reason: get_runtime().interrupt_controller.commit_interrupt(reason=reason),
+            # PR-026: the Conversation Model UI shows operation progress, and
+            # `hub.operation_progress` had no producer.  The Core is the only
+            # event emitter, so the saga reports and the owner publishes.
+            on_operation_progress=lambda model_id, percent, message: get_runtime().publish_hub_operation_progress(
+                model_id, percent, message
+            ),
         )
     return _hub_saga
 

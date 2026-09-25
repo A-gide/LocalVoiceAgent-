@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 from datetime import datetime, timedelta, timezone
@@ -107,7 +108,16 @@ class JournalRepository:
         provenance: dict[str, Any] | None = None,
         external_source: str | None = None,
         external_id: str | None = None,
+        commit: bool = True,
     ) -> str:
+        """Insert one event and return its id.
+
+        ``commit=False`` leaves the surrounding transaction open so a batch caller
+        (the Screenpipe importer) can make a whole page atomic.  Without it the
+        inner ``with self.conn`` committed the caller's transaction: a page whose
+        second record was invalid left the first one committed, so the page was
+        never one unit of work (plan 7.2 "每页导入在一个 transaction 中完成").
+        """
         eid = str(event_id)
         now_us = int(datetime.now(timezone.utc).timestamp() * 1_000_000)
         occ_us = occurred_at_utc_us if occurred_at_utc_us is not None else now_us
@@ -117,7 +127,7 @@ class JournalRepository:
 
         provenance_json = json.dumps(provenance or {}, ensure_ascii=False)
 
-        with self.conn:
+        with self.conn if commit else contextlib.nullcontext():
             self.conn.execute(
                 """
                 INSERT INTO events (
@@ -187,6 +197,72 @@ class JournalRepository:
                 )
 
         return eid
+
+    def apply_source_redaction(
+        self,
+        external_source: str,
+        external_id: str,
+        *,
+        redacted_text: str = "[REDACTED]",
+        commit: bool = True,
+    ) -> bool:
+        """Apply a source's later redaction mark to an event already stored.
+
+        Plan L896 requires the importer to respect source redaction/deletion marks,
+        and I06 forbids rewriting ``raw_text``.  Both hold here: the raw transcript
+        stays exactly as captured (it is what proves what was received), and the
+        redaction is recorded as a **new revision** so ``current_text`` -- the only
+        text search and the UI read -- becomes the redacted form.
+
+        Returns True when a revision was added, False when there was nothing to do
+        (no such event, or it is already redacted), so a caller can report honestly.
+        """
+        row = self.conn.execute(
+            """
+            SELECT e.event_id, e.current_revision, e.raw_text, v.current_text
+            FROM events e
+            LEFT JOIN current_event_text v ON v.event_id = e.event_id
+            WHERE e.external_source = ? AND e.external_id = ?
+            """,
+            (external_source, external_id),
+        ).fetchone()
+        if row is None:
+            return False
+        if (row["current_text"] or "") == redacted_text:
+            return False
+
+        event_id = row["event_id"]
+        revision = int(row["current_revision"] or 0)
+        now_us = int(datetime.now(timezone.utc).timestamp() * 1_000_000)
+
+        with self.conn if commit else contextlib.nullcontext():
+            self.conn.execute(
+                """
+                INSERT INTO event_revisions (
+                    event_id, revision, corrected_text, reason, actor, created_at_utc_us
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event_id,
+                    revision + 1,
+                    redacted_text,
+                    "source_redaction",
+                    "screenpipe_importer",
+                    now_us,
+                ),
+            )
+            self.conn.execute(
+                "UPDATE events SET current_revision = ? WHERE event_id = ?",
+                (revision + 1, event_id),
+            )
+            # The FTS row mirrors what is searchable, so it follows the revision
+            # rather than the immutable raw text.
+            seg = _segment_text(redacted_text)
+            self.conn.execute(
+                "UPDATE events_fts SET corrected_seg = ?, raw_seg = ? WHERE event_id = ?",
+                (seg, seg, event_id),
+            )
+        return True
 
     create_event = append_event
 
@@ -321,4 +397,3 @@ class JournalRepository:
             "revisions": revs_cnt,
             "temporal_mentions": mentions_cnt,
         }
-

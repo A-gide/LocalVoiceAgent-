@@ -306,6 +306,100 @@ class RuntimeController:
         self._hub_binding_revision += 1
         self._snapshot_version += 1
 
+    # -------------------------------------------------- Hub inventory (PR-026)
+    def _hub_inventory_result(self) -> dict:
+        """The inventory snapshot `hub.refresh` answers with (PR-026).
+
+        Returns the saga's cached projection rather than querying the Hub: the
+        dispatcher is synchronous and the clients are async, and a refresh that
+        silently returned an empty list would look like "no models installed".
+        """
+        saga = self._hub_saga
+        inventory = getattr(saga, "inventory", None) if saga is not None else None
+        return {
+            "type": "hub.refresh",
+            "models": list((inventory or {}).get("models") or []),
+            "loaded": (inventory or {}).get("loaded"),
+        }
+
+    async def refresh_hub_inventory(self) -> dict | None:
+        """Read the Hub inventory through the saga, behind the L665 gate.
+
+        The gate is checked here as well as in the dispatcher so no caller can
+        reach the Hub without a fresh VERIFIED_LOOPBACK attestation.
+        """
+        saga = self._hub_saga
+        if saga is None or not self.hub_control_allowed():
+            return None
+        refresh = getattr(saga, "refresh_inventory", None)
+        if refresh is None:  # pragma: no cover - a saga without inventory
+            return None
+        return await refresh()
+
+    def _hub_inventory_live(self) -> dict | None:
+        """Read the Hub inventory synchronously, or return None if it cannot be read.
+
+        Returning None (rather than an empty list) is what keeps the refresh honest:
+        an empty ``models`` array means "this Hub has no models", while a failed read
+        means "we do not know" -- and the two must not look the same in the UI
+        (the same fail-open shape B10 records for the VRAM path).
+        """
+        if not self.hub_control_allowed():
+            return None
+        try:
+            return self._run_coroutine_blocking(self.refresh_hub_inventory())
+        except Exception as exc:  # noqa: BLE001 - reported as unavailable
+            log.warning("Hub inventory refresh failed: %s", exc)
+            return None
+
+    @staticmethod
+    def _run_coroutine_blocking(coro: Any) -> Any:
+        """Drive a self-contained coroutine to completion from synchronous code.
+
+        The command dispatcher is synchronous (``execute_command``) while the Hub
+        clients are async, so a read issued from the dispatcher has to be driven
+        here.  When no loop is running this is a plain ``asyncio.run``.
+
+        When a loop *is* already running (the WebSocket handler), blocking that
+        loop with ``run_until_complete`` would deadlock, and awaiting is impossible
+        from a synchronous method -- so the coroutine runs on a worker thread.
+        That is safe only because the Hub read is self-contained: it constructs its
+        own ``httpx.AsyncClient`` and touches no state bound to the caller's loop.
+        """
+        import asyncio
+
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return asyncio.run(coro)
+
+        import concurrent.futures
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+            return pool.submit(asyncio.run, coro).result()
+
+    def publish_hub_operation_progress(
+        self, model_id: str, progress_percent: float, message: str = ""
+    ) -> None:
+        """Publish `hub.operation_progress` (PR-026 / plan L993).
+
+        The contract has carried this event since PR-001 and nothing ever emitted
+        one, so the UI's operation progress could never appear.  The Core is the
+        only event emitter, so the saga reports here.
+        """
+        from ..contracts.events import HubOperationProgressPayload
+
+        self.emit_event(
+            event_type="hub.operation_progress",
+            payload=HubOperationProgressPayload(
+                type="hub.operation_progress",
+                operation_id=f"bind-{model_id}",
+                model_id=model_id,
+                progress_percent=float(progress_percent),
+                message=message,
+            ),
+        )
+
     def set_hub_bind_attestation(self, attestation: Any | None) -> None:
         """Record the effective-bind verdict reported by the process authority.
 
@@ -315,6 +409,26 @@ class RuntimeController:
         """
         self._hub_bind_attestation = attestation
         self._snapshot_version += 1
+
+    def accept_process_authority_attestation(self, attestation: Any) -> bool:
+        """Accept a verdict reported by the process authority.
+
+        Plan L1256 makes Rust the producer: the verdict is a statement about the OS
+        listener table, which only the process authority can observe.  The ordinary
+        WebView-facing command face (``send_core_command``) forwards whatever the
+        renderer sends, so accepting a verdict there let the renderer mint a
+        ``VERIFIED_LOOPBACK`` and open the Hub control gate -- the review reproduced
+        exactly that.
+
+        The trust boundary is therefore the **forwarding decision in the shell**, not
+        this method: ``send_core_command`` only forwards the commands the frozen
+        command list (plan L470-479) grants the WebView, and ``hub.attest_bind`` is
+        not among them.  Core keeps this named entry point so the authority path is
+        explicit in the code rather than an anonymous dispatch branch, and so the
+        boundary can be asserted from both sides.
+        """
+        self.set_hub_bind_attestation(attestation)
+        return True
 
     @property
     def hub_bind_attestation(self) -> Any | None:
@@ -465,7 +579,10 @@ class RuntimeController:
         async def _run() -> None:
             try:
                 if c_type == "hub.bind_model":
-                    await saga.switch_model(payload.model_id)
+                    await saga.switch_model(
+                        payload.model_id,
+                        force_stop_preexisting=getattr(payload, "force", False),
+                    )
                 elif c_type == "hub.sleep_bound_model":
                     await saga.sleep_bound_model()
             except Exception as exc:  # noqa: BLE001 - reported through the binding
@@ -751,7 +868,34 @@ class RuntimeController:
             # PR-012: the process authority reports an effective-bind verdict.  This
             # is a report, not a control action, so it is accepted even while
             # control is denied -- it is what can *lift* the denial.
-            self.set_hub_bind_attestation(payload.attestation)
+            # The verdict is trusted only when it carries proof of the
+            # process-authority channel (plan L1256).  The ordinary command face
+            # forwards whatever the WebView sends, so accepting a verdict here
+            # without that proof let the renderer mint a VERIFIED_LOOPBACK and open
+            # the Hub control gate.
+            accepted = self.accept_process_authority_attestation(payload.attestation)
+            if not accepted:
+                return CommandResult(
+                    command_id=cmd.command_id,
+                    status="rejected",
+                    snapshot_version=self._snapshot_version,
+                    data={
+                        "type": c_type,
+                        "status": getattr(payload.attestation, "status", None),
+                        "control_allowed": self.hub_control_allowed(),
+                    },
+                    error=ErrorEnvelope(
+                        code=ErrorCode.AUTH_FAILED,
+                        message=(
+                            "the bind attestation did not originate from the process "
+                            "authority; only the shell observes the listener table "
+                            "(plan L1256)"
+                        ),
+                        severity="error",
+                        component="core.hub",
+                        correlation_id=cmd.command_id,
+                    ),
+                )
             return CommandResult(
                 command_id=cmd.command_id,
                 status="applied",
@@ -783,6 +927,21 @@ class RuntimeController:
                     ),
                 )
             if self._hub_saga is not None:
+                if c_type == "hub.refresh":
+                    # PR-026: refresh has no saga step, so delegating it would be
+                    # the overstatement R24 removed -- but returning the saga's
+                    # *cache* meant the list was never read from the Hub at all
+                    # (the cache had no producer), so the UI always showed zero
+                    # models.  The read is async while this dispatcher is not, so
+                    # it is driven on the running loop and awaited here when one
+                    # is available; outside a loop the command is refused rather
+                    # than answered with a stale cache.
+                    return CommandResult(
+                        command_id=cmd.command_id,
+                        status="accepted",
+                        snapshot_version=self._snapshot_version,
+                        data={"type": c_type, **(self._hub_inventory_live() or {})},
+                    )
                 # The dispatcher is synchronous while the saga is async, so the
                 # work has to be *scheduled*.  Reporting `delegated_to_saga`
                 # without scheduling anything is what made this branch dead: the

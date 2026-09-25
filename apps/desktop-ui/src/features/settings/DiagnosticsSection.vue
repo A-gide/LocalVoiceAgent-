@@ -37,6 +37,47 @@
         </div>
       </div>
     </div>
+
+    <!--
+      The exported bundle's own content, rendered so the user can see what a
+      support bundle actually contains before sending it anywhere (PR-032
+      L1454: "redacted event/latency/queue").  Nothing here is a raw endpoint,
+      PID or transcript: the Core redacts the bundle and this view only reads it.
+    -->
+    <div v-if="bundle" class="card">
+      <div class="card-header">
+        <strong>诊断包内容 (已脱敏)</strong>
+      </div>
+      <div class="card-row">
+        <label>Schema 版本</label>
+        <span>{{ bundle.schema_version }}</span>
+      </div>
+      <div class="card-row">
+        <label>快照版本 / 聚合修订</label>
+        <span>snapshot {{ bundle.snapshot_version }} · control {{ bundle.runtime_control_revision }} · hub {{ bundle.hub_binding_revision }}</span>
+      </div>
+      <div class="card-row">
+        <label>模式 / 活动 / 隐私范围</label>
+        <span>{{ bundle.mode }} · {{ bundle.activity }} · {{ bundle.privacy_scope }}</span>
+      </div>
+      <div class="card-row">
+        <label>被丢弃的过期效果 (stale)</label>
+        <span>{{ bundle.stale_dropped_count }} 次</span>
+      </div>
+      <div class="card-row">
+        <label>Journal 事件 / 修订</label>
+        <span v-if="bundle.journal_summary">
+          {{ bundle.journal_summary.events_count ?? '—' }} 事件 ·
+          {{ bundle.journal_summary.revisions_count ?? '—' }} 修订 ·
+          完整性 {{ bundle.journal_summary.integrity_check ?? '—' }}
+        </span>
+        <span v-else>未连接</span>
+      </div>
+      <div class="card-row">
+        <label>事件与队列面</label>
+        <span>导出时间 {{ bundle.exported_at }}</span>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -49,6 +90,32 @@ const runtime = useRuntimeStore();
 const isExporting = ref(false);
 const exportResult = ref<string | null>(null);
 
+/**
+ * The redacted bundle returned by `diagnostics.export_redacted`.
+ *
+ * Typed loosely on purpose: the bundle is produced by the Core's redactor and
+ * may gain fields; this view renders only the keys it knows and never forwards
+ * the whole object anywhere.
+ */
+interface RedactedBundle {
+  schema_version?: string;
+  snapshot_version?: number;
+  runtime_control_revision?: number;
+  hub_binding_revision?: number;
+  mode?: string;
+  activity?: string;
+  privacy_scope?: string;
+  stale_dropped_count?: number;
+  exported_at?: string;
+  journal_summary?: {
+    events_count?: number;
+    revisions_count?: number;
+    integrity_check?: string;
+  } | null;
+}
+
+const bundle = ref<RedactedBundle | null>(null);
+
 async function handleExport() {
   isExporting.value = true;
   exportResult.value = null;
@@ -57,7 +124,8 @@ async function handleExport() {
       type: 'diagnostics.export_redacted',
     });
     if (res.status === 'applied') {
-      exportResult.value = '诊断包已成功生成 (已脱敏)';
+      bundle.value = (res.data || null) as RedactedBundle | null;
+      exportResult.value = '诊断包已成功生成 (已脱敏，下方为实际内容)';
     } else {
       exportResult.value = `导出失败: ${res.error?.message || '拒绝'}`;
     }

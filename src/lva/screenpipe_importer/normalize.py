@@ -22,8 +22,17 @@ def normalize_screenpipe_audio_item(item: dict[str, Any]) -> dict[str, Any]:
             if dt.tzinfo and dt.utcoffset() is not None:
                 utc_offset_minutes = int(dt.utcoffset().total_seconds() / 60)
                 event_timezone = f"UTC{'+' if utc_offset_minutes >= 0 else ''}{utc_offset_minutes // 60:+03d}:{abs(utc_offset_minutes) % 60:02d}" if utc_offset_minutes != 0 else "UTC"
-        except Exception:
-            occ_us = int(datetime.now(timezone.utc).timestamp() * 1_000_000)
+        except Exception as exc:
+            # A timestamp that cannot be parsed must not be silently replaced with
+            # "now": that value advances the import checkpoint past every record
+            # still waiting to be imported, losing them permanently.  The caller
+            # decides what to do with an unusable record (the importer skips it and
+            # does not advance the watermark).
+            raise ValueError(
+                f"unparseable Screenpipe timestamp {timestamp_str!r}; refusing to "
+                "substitute the current time, which would advance the import "
+                "checkpoint past unimported records"
+            ) from exc
     else:
         occ_us = int(datetime.now(timezone.utc).timestamp() * 1_000_000)
 
@@ -80,4 +89,3 @@ def normalize_screenpipe_audio_item(item: dict[str, Any]) -> dict[str, Any]:
         "domain": "screenpipe_capture",
         "provenance": provenance,
     }
-

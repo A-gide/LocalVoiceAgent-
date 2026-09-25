@@ -32,8 +32,10 @@ for fn in ["chemistry.txt", "physics.txt", "biology.txt", "names.txt"]:
             if line and not line.startswith("#"):
                 hotwords.add(line)
 
-# Write unified hotwords.txt
-models_dir = root / "apps/open-llm-vtuber/models"
+# Write unified hotwords.txt.
+# PR-036 removes the OLV tree, so the generated file lives under the LVA data
+# directory rather than inside a subsystem that is scheduled for deletion.
+models_dir = root / "data" / "vocab"
 models_dir.mkdir(parents=True, exist_ok=True)
 hw_file = models_dir / "hotwords.txt"
 hw_file.write_text("\n".join(sorted(hotwords)), encoding="utf-8")

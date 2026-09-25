@@ -30,6 +30,46 @@ export const useChatStore = defineStore('chat', () => {
   const currentStreamContent = ref<string>('');
   const traces = ref<TurnTrace[]>([]);
   const showDiagnostics = ref<boolean>(false);
+  /**
+   * The Core instance these messages belong to (PR-028 acceptance: "Core restart
+   * 清理 pending").
+   *
+   * A restarted Core is a different runtime instance, and any turn the previous
+   * one was running died with it.  Without this the UI keeps `isStreaming` set
+   * and waits forever for a completion that can never arrive.
+   */
+  const coreInstanceId = ref<string | null>(null);
+
+  function resetPendingState(reason: string) {
+    if (activeTurn.value !== null || isStreaming.value) {
+      messages.value.push({
+        id: 'reset-' + Date.now(),
+        role: 'system',
+        content: `[已重置待处理状态: ${reason}]`,
+        timestamp: new Date().toLocaleTimeString(),
+      });
+    }
+    activeTurn.value = null;
+    isStreaming.value = false;
+    currentStreamContent.value = '';
+  }
+
+  /**
+   * Called with every snapshot: a new `runtime_instance_id` means the Core was
+   * restarted, so pending state from the previous instance is dropped rather
+   * than left waiting.
+   */
+  function observeCoreInstance(instanceId: string | null | undefined) {
+    if (!instanceId) return;
+    if (coreInstanceId.value === null) {
+      coreInstanceId.value = instanceId;
+      return;
+    }
+    if (coreInstanceId.value !== instanceId) {
+      coreInstanceId.value = instanceId;
+      resetPendingState('Core 已重启，上一实例的进行中对话已失效');
+    }
+  }
 
   async function sendText(text: string) {
     if (!text.trim()) return;
@@ -98,6 +138,10 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function handleTurnCompleted(turnId: TurnId, epoch: number, replyText: string) {
+    // Stale-response guard (L1418): a completion is rendered only for the turn
+    // this UI is actually waiting on.  A late reply from a superseded turn is
+    // dropped rather than appended, or the transcript would show an answer to a
+    // question the user already moved past.
     if (activeTurn.value?.sequence === turnId.sequence) {
       activeTurn.value = null;
       isStreaming.value = false;
@@ -115,6 +159,16 @@ export const useChatStore = defineStore('chat', () => {
         trace.completedAt = new Date().toISOString();
         trace.replyText = replyText;
       }
+    } else {
+      traces.value.unshift({
+        turnId,
+        providerEpoch: epoch,
+        startedAt: new Date().toISOString(),
+        completedAt: new Date().toISOString(),
+        replyText,
+        cancelled: true,
+        cancelReason: 'stale_response_dropped',
+      });
     }
   }
 
@@ -142,6 +196,8 @@ export const useChatStore = defineStore('chat', () => {
 
   function clearMessages() {
     messages.value = [];
+    traces.value = [];
+    resetPendingState('用户清空对话');
   }
 
   return {
@@ -151,8 +207,11 @@ export const useChatStore = defineStore('chat', () => {
     currentStreamContent,
     traces,
     showDiagnostics,
+    coreInstanceId,
     sendText,
     cancelTurn,
+    resetPendingState,
+    observeCoreInstance,
     handleTurnStarted,
     handleTurnCompleted,
     handleTurnCancelled,

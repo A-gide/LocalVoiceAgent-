@@ -5,11 +5,18 @@ Measures:
 2. M4: Rebuild Latency (Dual-Metric: Window Visible Latency vs WS/Interactive Ready Latency)
 3. M2: Settings Window Lifecycle ("Use & Destroy", no lingering WebView2 tree)
 4. S1: Windows User-Scope DPAPI Credential Vault Security (CryptProtectData + Entropy, zero plaintext on disk)
-5. M1: Genuine ASR/TTS Engine Switch & Inspection (/api/config/active, /api/character/switch, and live dialogue)
+5. M1: LVA Core reachability and a real typed turn over the authenticated WS
 6. Single-Instance Fast Exit (Named Mutex)
 7. Live Barge-in Response (Test C with roundtrip wall-clock & physical sounddevice cutoff)
 8. VRAM Release (~4.9GB) & Dual Cold-Start Latency (N=3)
 Output saved directly to acceptance-20260917/desktop-shell-evidence.json by this script.
+
+PR-015/036 note: this suite originally drove Open-LLM-VTuber's own HTTP/WS API
+(`/api/config/active`, `/api/character/switch`, `client-ws` on 12393) and a bare
+llama-server on 1234.  LVA owns conversation now, the OLV process is gone, and
+the Hub owns the model runtime, so those probes were replaced with the
+equivalent LVA Core endpoints.  Historical results already written to
+acceptance-20260917/ are left untouched (no history rewriting).
 """
 import os
 import sys
@@ -19,6 +26,7 @@ import subprocess
 import urllib.request
 import asyncio
 import psutil
+import uuid
 
 try:
     import websockets
@@ -26,6 +34,15 @@ except ImportError:
     websockets = None
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# LVA Core owns conversation (PR-037 removed the OLV facade this suite used to
+# drive).  The token is the one the shell passes to Core over the bootstrap
+# stdin channel; the benchmark takes it from the environment so no credential is
+# stored in this file.
+LVA_PORT = int(os.environ.get("LVA_PORT", "8765"))
+LVA_TOKEN = os.environ.get("LVA_TOKEN", "")
+LVA_WS_URI = f"ws://127.0.0.1:{LVA_PORT}/ws"
+LVA_WS_HEADERS = {"Authorization": f"Bearer {LVA_TOKEN}", "Origin": "tauri://localhost"} if LVA_TOKEN else {}
 SERVICES_FILE = os.path.join(ROOT, "services.json")
 SETTINGS_FILE = os.path.join(ROOT, "settings.json")
 EVIDENCE_FILE = os.path.join(ROOT, "acceptance-20260917", "desktop-shell-evidence.json")
@@ -150,7 +167,9 @@ def test_dormancy_and_rebuild():
             ws_deadline = time.perf_counter() + 10.0
             while time.perf_counter() < ws_deadline:
                 try:
-                    async with websockets.connect("ws://127.0.0.1:12393/ws", open_timeout=2.0) as ws:
+                    async with websockets.connect(
+                        LVA_WS_URI, open_timeout=2.0, additional_headers=LVA_WS_HEADERS
+                    ) as ws:
                         msg = await ws.recv()
                         t_ws_ready = round((time.perf_counter() - t0) * 1000, 1)
                         break
@@ -218,80 +237,57 @@ def test_dpapi_vault():
 
 
 def test_m1_character_engine_switch():
-    print("\n--- [Test 3/6] M1: Real ASR/TTS Engine Switch via /api/character/switch ---")
-    req = urllib.request.Request("http://127.0.0.1:12393/api/config/active")
+    print("\n--- [Test 3/6] M1: LVA Core reachability and a real typed turn ---")
+    # The engine-switch probe this replaced belonged to the OLV process, which
+    # PR-036 removed.  What matters for the desktop shell now is that the shell's
+    # Core answers and completes a real typed turn over the authenticated WS.
+    req = urllib.request.Request(f"http://127.0.0.1:{LVA_PORT}/health")
     with urllib.request.urlopen(req, timeout=3.0) as resp:
-        active_before = json.loads(resp.read().decode("utf-8"))
+        health = json.loads(resp.read().decode("utf-8"))
+    print(f"Core health: {health}")
 
-    print(f"Initial Character: {active_before['character']['conf_name']} (ASR: {active_before['asr']['engine']}, TTS: {active_before['tts']['engine']})")
-
-    # 1. Switch to en_nuke_debate.yaml
-    switch_req = urllib.request.Request(
-        "http://127.0.0.1:12393/api/character/switch",
-        data=json.dumps({"file": "en_nuke_debate.yaml"}).encode("utf-8"),
-        headers={"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(switch_req, timeout=5.0) as resp:
-        switch_res = json.loads(resp.read().decode("utf-8"))
-    print(f"Switched to: {switch_res['character']} (Active config: {switch_res['active_config']})")
-
-    with urllib.request.urlopen(req, timeout=3.0) as resp:
-        active_after = json.loads(resp.read().decode("utf-8"))
-    assert active_after["character"]["conf_name"] == "en_nuke_debator", "Character was not switched!"
-    time.sleep(1.0)
-
-    # 2. Strong validation: Live conversation turn while en_nuke_debate is active
     ws_reply = None
+    turn_completed = False
     if websockets:
         async def verify_dialogue():
-            nonlocal ws_reply
-            async with websockets.connect("ws://127.0.0.1:12393/client-ws", max_size=10*1024*1024) as ws:
-                await ws.send(json.dumps({"type": "text-input", "text": "What is your stance on nuclear weapons?"}, ensure_ascii=False))
-                while True:
-                    try:
-                        raw = await asyncio.wait_for(ws.recv(), timeout=12.0)
-                        data = json.loads(raw)
-                        if data.get("type") == "audio":
-                            dt = data.get("display_text")
-                            if isinstance(dt, dict) and "text" in dt:
-                                ws_reply = (ws_reply or "") + dt["text"]
-                            elif isinstance(dt, str):
-                                ws_reply = (ws_reply or "") + dt
-                            await ws.send(json.dumps({"type": "frontend-playback-complete"}))
-                        elif data.get("type") == "control" and data.get("text") == "conversation-chain-end":
-                            break
-                    except asyncio.TimeoutError:
+            nonlocal ws_reply, turn_completed
+            async with websockets.connect(
+                LVA_WS_URI, max_size=10*1024*1024, additional_headers=LVA_WS_HEADERS
+            ) as ws:
+                hello = json.loads(await ws.recv())
+                assert hello.get("kind") == "hello", "Core must greet with a snapshot"
+                await ws.send(json.dumps({
+                    "schema_version": "1.0",
+                    "command_id": str(uuid.uuid4()),
+                    "type": "turn.send_text",
+                    "payload": {"type": "turn.send_text", "text": "1+1 等于几？"},
+                }, ensure_ascii=False))
+                deadline = time.perf_counter() + 30.0
+                while time.perf_counter() < deadline:
+                    raw = await asyncio.wait_for(ws.recv(), timeout=30.0)
+                    data = json.loads(raw)
+                    if data.get("kind") == "command_result" and data.get("status") in ("applied", "accepted"):
+                        continue
+                    payload = data.get("payload") or {}
+                    if payload.get("type") == "turn.completed":
+                        ws_reply = payload.get("reply_text") or ""
+                        turn_completed = True
+                        break
+                    if payload.get("type") == "turn.cancelled":
                         break
         try:
             asyncio.run(verify_dialogue())
-            print(f"Active debater reply sample: {ws_reply[:80] if ws_reply else 'None'}")
+            print(f"Typed turn reply: {(ws_reply or '')[:80]!r}")
         except Exception as e:
             print(f"Dialogue verification warning: {e}")
 
-    # 3. Check /api/characters character names encoding
-    char_req = urllib.request.Request("http://127.0.0.1:12393/api/characters")
-    with urllib.request.urlopen(char_req, timeout=3.0) as resp:
-        chars_data = json.loads(resp.read().decode("utf-8"))
-    print(f"Characters available: {[c['name'] for c in chars_data.get('characters', [])]}")
-
-    # 4. Switch back to conf.yaml
-    switch_back = urllib.request.Request(
-        "http://127.0.0.1:12393/api/character/switch",
-        data=json.dumps({"file": "conf.yaml"}).encode("utf-8"),
-        headers={"Content-Type": "application/json"}
-    )
-    with urllib.request.urlopen(switch_back, timeout=5.0) as resp:
-        back_res = json.loads(resp.read().decode("utf-8"))
-    print(f"Restored to default: {back_res['character']}")
-
-    print("PASS: Engine and character configuration switch verified with live dialogue.")
+    verdict = "PASS" if turn_completed else "INCOMPLETE"
+    print(f"{verdict}: Core answered; typed turn completed = {turn_completed}")
     return {
-        "verdict": "PASS",
-        "tested_switch_target": "en_nuke_debate.yaml",
-        "reconstructed_asr_engine": switch_res.get("asr_engine"),
-        "reconstructed_tts_engine": switch_res.get("tts_engine"),
-        "restored_character": back_res.get("character"),
-        "active_dialogue_verified": bool(ws_reply and len(ws_reply) > 5)
+        "verdict": verdict,
+        "core_health": health,
+        "active_dialogue_verified": bool(ws_reply and len(ws_reply) > 0),
+        "turn_completed": turn_completed,
     }
 
 
@@ -319,15 +315,19 @@ async def test_live_barge_in(n_trials=3):
     await asyncio.sleep(2.0)
 
     trials = []
-    uri = "ws://127.0.0.1:12393/ws"
+    uri = LVA_WS_URI
 
     for i in range(n_trials):
-        async with websockets.connect(uri, max_size=10*1024*1024) as ws:
+        async with websockets.connect(uri, max_size=10*1024*1024, additional_headers=LVA_WS_HEADERS) as ws:
             await ws.recv() # hello
-            await ws.recv() # ready
 
             prompt = f"请详细介绍一下量子纠缠和量子隐形传态的物理原理，从自旋单态讲起 (测试轮次 {i+1})。"
-            await ws.send(json.dumps({"type": "ask", "text": prompt, "speak": True}))
+            await ws.send(json.dumps({
+                "schema_version": "1.0",
+                "command_id": str(uuid.uuid4()),
+                "type": "turn.send_text",
+                "payload": {"type": "turn.send_text", "text": prompt},
+            }, ensure_ascii=False))
 
             barge_in_wall_ms = None
             t_send = None
@@ -338,17 +338,27 @@ async def test_live_barge_in(n_trials=3):
                 raw = await asyncio.wait_for(ws.recv(), timeout=15.0)
                 msg = json.loads(raw)
                 kind = msg.get("kind")
-                if kind == "speak_chunk":
+                payload = msg.get("payload") or {}
+                # The first streamed piece is the signal that the turn is live,
+                # which is when a barge-in is meaningful (plan Part 3.3).
+                if payload.get("type") == "audio.playback_started" or kind == "speak_chunk":
                     chunks_received += 1
                     if chunks_received == 1:
                         t_send = time.perf_counter()
-                        await ws.send(json.dumps({"type": "barge_in"}))
-                elif kind == "barge_in":
+                        await ws.send(json.dumps({
+                            "schema_version": "1.0",
+                            "command_id": str(uuid.uuid4()),
+                            "type": "turn.cancel",
+                            "payload": {"type": "turn.cancel", "reason": "bench_barge_in"},
+                        }))
+                elif kind == "command_result" and t_send is not None:
                     t_ack = time.perf_counter()
-                    barge_in_wall_ms = (t_ack - t_send) * 1000 if t_send else msg.get("ms", 0.0)
-                    server_ms = msg.get("ms")
+                    barge_in_wall_ms = (t_ack - t_send) * 1000
+                    server_ms = msg.get("status")
                     break
-                elif kind == "reply" and msg.get("cancelled"):
+                elif payload.get("type") == "turn.cancelled":
+                    t_ack = time.perf_counter()
+                    barge_in_wall_ms = (t_ack - t_send) * 1000 if t_send else 0.0
                     break
 
             w_ms = round(barge_in_wall_ms, 2)
@@ -392,7 +402,9 @@ def probe_generation_ready():
         "max_tokens": 1
     }).encode("utf-8")
     req = urllib.request.Request(
-        "http://127.0.0.1:1234/v1/chat/completions",
+        # The Hub owns the model runtime (PR-015 removed LVA's own llama-server);
+        # the old bare endpoint on 1234 no longer exists in this deployment.
+        f"http://127.0.0.1:{os.environ.get('LVA_HUB_PORT', '8080')}/v1/chat/completions",
         data=req_data,
         headers={"Content-Type": "application/json"}
     )

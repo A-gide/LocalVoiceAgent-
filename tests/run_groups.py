@@ -6,8 +6,10 @@ exactly the same definitions. Groups are intentionally explicit rather than
 
 * **v1.2 layer groups** - the shipped implementation's suites. These are green
   today and are what ``scripts/verify_release_gates.py`` executes.
-* **v1.2.1 groups** - ``harness`` (instrument self-tests, must be green) and
-  ``red-v121`` (gap reproductions, **expected to fail** until R03-R14 land).
+* **v1.2.1 groups** - ``harness`` (instrument self-tests) and ``red-v121`` (the
+  gap reproductions).  Both are green as of R33: every slice the suite
+  reproduces has landed, so a failure in ``red-v121`` is now a regression rather
+  than an expected gap.
 
 Usage::
 
@@ -62,7 +64,10 @@ GROUPS: tuple[Group, ...] = (
         "PR-022",
         "instrument self-tests (WASAPI scaffold, redaction rig, CAS/turn probes)",
     ),
-    Group("red-v121", "v121", ("tests/red_v121",), False, "R03-R14", "v1.2.1 gap reproductions (RED by design)"),
+    # R33: the suite reached zero failures, so it is now expected green.  Leaving
+    # it marked "RED by design" would silently accept a real regression as an
+    # expected gap -- exactly the masking this group was created to prevent.
+    Group("red-v121", "v121", ("tests/red_v121",), True, "R03-R33", "v1.2.1 gap reproductions (all slices landed)"),
 )
 
 BY_NAME = {g.name: g for g in GROUPS}

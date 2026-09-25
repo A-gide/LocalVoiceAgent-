@@ -4,7 +4,8 @@
 
 Measures what a live voice loop actually depends on: time to first token, tokens
 per second, whether the thinking pass can be switched off, and how much VRAM the
-model holds.  Run scripts/llm_serve.py --start <model> first.
+model holds.  Load the model in the llama.cpp-hub first (or bind it through LVA):
+LVA no longer starts a llama.cpp backend of its own (PR-015).
 """
 from __future__ import annotations
 

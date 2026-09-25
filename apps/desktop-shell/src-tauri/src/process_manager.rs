@@ -27,7 +27,6 @@ pub struct SingleServiceInfo {
 pub struct FullServicesStatus {
     pub llama_server: SingleServiceInfo,
     pub screenpipe: SingleServiceInfo,
-    pub open_llm_vtuber: SingleServiceInfo,
     pub vram_mb_estimated: u64,
     pub is_switching_model: bool,
 }
@@ -91,7 +90,6 @@ impl ProcessManager {
     pub fn get_status(&self) -> FullServicesStatus {
         let llama_up = Self::is_port_listening(8080);
         let screenpipe_up = Self::is_port_listening(3030);
-        let vtuber_up = false; // OLV conversation process is removed per PR-036
 
         let own = self.ownership_map.lock().unwrap();
         let children = self.spawned_children.lock().unwrap();
@@ -112,13 +110,6 @@ impl ProcessManager {
                 is_running: screenpipe_up,
                 pid: screenpipe_pid,
                 ownership: own.get("screenpipe").copied(),
-            },
-            open_llm_vtuber: SingleServiceInfo {
-                name: "open-llm-vtuber".to_string(),
-                port: 12393,
-                is_running: vtuber_up,
-                pid: None,
-                ownership: None,
             },
             vram_mb_estimated: if llama_up { 4900 } else { 1200 },
             is_switching_model: self.is_switching_model.load(Ordering::SeqCst),
@@ -328,15 +319,15 @@ mod tests {
         assert_eq!(status.llama_server.port, 8080);
         assert!(status.llama_server.pid.is_none(), "Hub PID must never be guessed");
         assert_eq!(status.llama_server.ownership, Some(ProcessOwnership::Adopted));
-        assert!(status.open_llm_vtuber.pid.is_none());
-        assert!(!status.open_llm_vtuber.is_running);
     }
 
     #[test]
     fn ensure_service_running_ignores_keys_it_does_not_own() {
         let pm = ProcessManager::new();
         assert_eq!(pm.ensure_service_running("llama_server"), Ok(0.0));
-        assert_eq!(pm.ensure_service_running("open_llm_vtuber"), Ok(0.0));
+        // PR-036 removed the OLV conversation process, so an unknown key must
+        // still be ignored rather than spawning something (I04).
+        assert_eq!(pm.ensure_service_running("nonexistent_service"), Ok(0.0));
         assert!(pm.spawned_children.lock().unwrap().is_empty());
     }
 

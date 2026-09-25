@@ -65,7 +65,6 @@ export interface SavedWindowGeometry {
 
 export interface FullServicesStatus {
   llama_server: ServiceProcessInfo;
-  open_llm_vtuber: ServiceProcessInfo;
   screenpipe: ServiceProcessInfo;
   vram_mb_estimated: number;
   is_switching_model: boolean;
@@ -249,7 +248,6 @@ async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promi
     case 'get_services_status':
       return {
         llama_server: { is_running: true, pid: 1234 },
-        open_llm_vtuber: { is_running: true, pid: 5678 },
         screenpipe: { is_running: true, pid: 9012 },
         vram_mb_estimated: 4900,
         is_switching_model: false,

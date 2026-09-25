@@ -12,9 +12,11 @@
 param(
     [string]$Root = "E:\AI\LocalVoiceAgent",
     [int]$ServicePort = 8765,
-    [int]$VtuberPort = 12393,
     [int]$ScreenpipePort = 3030,
-    [int]$LlmPort = 1234
+    # PR-015/036: LVA no longer owns a llama.cpp backend (the Hub does, on 8080)
+    # and the OLV conversation process on 12393 was removed, so auditing those
+    # two ports would only ever report on services this project does not own.
+    [int]$HubPort = 8080
 )
 
 $script:findings = 0
@@ -40,7 +42,7 @@ Write-Host ""
 Write-Host "-- listening sockets --"
 $listeners = Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue
 $mine0 = @()
-foreach ($f in @("voice-server.pid", "llama-server.pid", "screenpipe.pid", "open-llm-vtuber.pid")) {
+foreach ($f in @("voice-server.pid", "screenpipe.pid")) {
     $pf = Join-Path $Root "data\$f"
     if (Test-Path $pf) {
         $v = Get-Content $pf -ErrorAction SilentlyContinue
@@ -59,7 +61,7 @@ if ($mineWild) {
     Finding "OK" "project listeners" "no project service is bound to 0.0.0.0 or ::"
 }
 Finding "INFO" "other wildcard listeners" ("{0} unrelated services on this machine" -f $wild.Count)
-foreach ($port in @($LlmPort, $ServicePort, $VtuberPort, $ScreenpipePort)) {
+foreach ($port in @($HubPort, $ServicePort, $ScreenpipePort)) {
     $c = $listeners | Where-Object { $_.LocalPort -eq $port }
     if ($c) {
         $addr = ($c | Select-Object -First 1).LocalAddress
@@ -70,9 +72,9 @@ foreach ($port in @($LlmPort, $ServicePort, $VtuberPort, $ScreenpipePort)) {
 
 # ------------------------------------------------------ 2. this project's pids
 Write-Host ""
-Write-Host "-- project processes --"
-$mine = @()
-foreach ($f in @("voice-server.pid", "llama-server.pid", "screenpipe.pid", "open-llm-vtuber.pid")) {
+    Write-Host "-- project processes --"
+    $mine = @()
+    foreach ($f in @("voice-server.pid", "screenpipe.pid")) {
     $p = Join-Path $Root "data\$f"
     if (Test-Path $p) {
         $id = Get-Content $p -ErrorAction SilentlyContinue

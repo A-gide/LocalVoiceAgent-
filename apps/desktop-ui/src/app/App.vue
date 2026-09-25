@@ -17,6 +17,11 @@ const chat = useChatStore();
 
 let unlisten: (() => void) | null = null;
 
+// PR-028: a restarted Core is a different runtime instance, so the chat store's
+// pending turn belongs to an instance that no longer exists.  Registered before
+// the first snapshot is fetched so the initial instance is recorded too.
+runtime.onCoreInstanceChanged((instanceId) => chat.observeCoreInstance(instanceId));
+
 onMounted(async () => {
   // If running inside Tauri, check the window label or query param to auto-route
   if (isTauriEnvironment()) {

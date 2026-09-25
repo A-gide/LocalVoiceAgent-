@@ -1,8 +1,8 @@
 """
 Measure real resource usage in the three states required by MASTER_PROMPT.md Section 34:
 1. recording: Screenpipe passive capture running, nobody talking
-2. live_idle: Open-LLM-VTuber + Screenpipe + llama-server running, microphone listening, nobody talking
-3. live_talking: spoken turns in flight (llama-server LLM streaming + sherpa-onnx MeloTTS synthesizing)
+2. live_idle: llama.cpp-hub + Screenpipe running, microphone listening, nobody talking
+3. live_talking: spoken turns in flight (Hub LLM streaming + sherpa-onnx MeloTTS synthesizing)
 
 Writes to benchmarks/resource-usage.json and acceptance-20260917/resource-usage-evidence.json.
 """
@@ -24,11 +24,15 @@ DATA_DIR = ROOT / "data"
 BENCH_DIR = ROOT / "benchmarks"
 EVIDENCE_DIR = ROOT / "acceptance-20260917"
 
-WS_URI = "ws://127.0.0.1:12393/client-ws"
+# LVA Core's own authenticated endpoint. The old OLV `client-ws` port (12393)
+# belonged to the conversation process PR-036 removed.
+WS_URI = "ws://127.0.0.1:8765/ws"
 
 def get_pids_from_ports() -> dict[str, int]:
     pids = {}
-    for port, name in [(1234, "llama-server"), (3030, "screenpipe"), (12393, "open-llm-vtuber")]:
+    # PR-015/036: LVA no longer owns a llama.cpp backend and the OLV process is
+    # gone, so only the two services LVA actually integrates with are measured.
+    for port, name in [(8080, "llama.cpp-hub"), (3030, "screenpipe")]:
         try:
             for conn in psutil.net_connections(kind="tcp"):
                 if conn.status == "LISTEN" and conn.laddr and conn.laddr.port == port:

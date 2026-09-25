@@ -1,4 +1,9 @@
 {
-  "_note": "Sanitised fixture: a Hub whose version the pinned contract does not know. Must resolve to DEGRADED, never READY.",
-  "version": "0.10.0-rc1"
+  "_note": "A Hub version the pinned contract does not know. Must resolve to DEGRADED, never READY. Envelope matches the real /api/sys/version shape.",
+  "success": true,
+  "data": {
+    "createdTime": "2026-09-07T03:55:53Z",
+    "tag": "v0.10.0-rc1",
+    "version": "0.10.0-rc1"
+  }
 }

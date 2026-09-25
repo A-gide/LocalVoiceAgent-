@@ -1,5 +1,9 @@
 {
-  "_note": "Sanitised fixture: /api/sys/version as observed on the pinned upstream commit. No host, no account, no path.",
-  "_source": "plan L571 pinned fixture; reviewed upstream commit a9cf12809e8243ff0b820abda1a24934d4eb7026",
-  "version": "0.9.8.3"
+  "_note": "Sanitised fixture captured from the REAL llama.cpp-hub 0.9.8.3 on 2026-09-24. The payload is nested under `data` -- a fixture without that envelope hides parser bugs.",
+  "success": true,
+  "data": {
+    "createdTime": "2026-09-07T03:55:53Z",
+    "tag": "v0.9.8.3",
+    "version": "0.9.8.3"
+  }
 }

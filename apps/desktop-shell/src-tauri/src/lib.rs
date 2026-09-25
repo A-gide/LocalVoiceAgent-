@@ -98,7 +98,13 @@ fn observe_hub_bind_attestation() -> network_attestation::HubBindAttestation {
 }
 
 /// The Hub control port whose effective bind must be attested.
-const HUB_CONTROL_PORT: u16 = 8089;
+///
+/// Plan L527: the Hub's default entry is **8080** and its child backends get
+/// 8081+; LVA does not depend on a child port.  This must match the Hub's own
+/// configured `webPort` (and Core's `HUB_PORT`), because probing a port with no
+/// listener yields `UNVERIFIED_BIND` and would close the control gate permanently
+/// even against a healthy Hub.
+const HUB_CONTROL_PORT: u16 = 8080;
 
 /// How often the effective bind is re-attested.
 ///

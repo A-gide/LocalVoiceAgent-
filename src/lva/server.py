@@ -188,13 +188,17 @@ def get_hub_saga() -> "HubRuntimeSaga":
         from .providers.hub_inference import LlamaCppHubInferenceClient
         from .providers.hub_runtime import HubRuntimeSaga
 
-        base_url = f"http://{C.SERVICE_HOST}:{C.HUB_PORT}" if hasattr(C, "HUB_PORT") else "http://127.0.0.1:8080"
+        base_url = f"http://{C.SERVICE_HOST}:{C.HUB_PORT}"
+        # The real Hub ships with `security.apiKeyEnabled: true`, so the clients
+        # must carry the key or every management request 401s.  The key lives in
+        # memory only -- never logged, never written to disk.
+        hub_api_key = getattr(C, "HUB_API_KEY", "") or C.LLM_API_KEY
         # NOTE: the callbacks are resolved lazily.  ``get_runtime()`` constructs the
         # saga, so calling ``get_runtime()`` here would recurse infinitely; the
         # lambdas below only run when the saga actually fires them.
         _hub_saga = HubRuntimeSaga(
-            control_client=LlamaCppHubControlClient(base_url=base_url),
-            inference_client=LlamaCppHubInferenceClient(base_url=base_url),
+            control_client=LlamaCppHubControlClient(base_url=base_url, api_key=hub_api_key),
+            inference_client=LlamaCppHubInferenceClient(base_url=base_url, api_key=hub_api_key),
             on_binding_changed=lambda binding: get_runtime().set_hub_binding(binding),
             on_interrupt=lambda reason: get_runtime().interrupt_controller.commit_interrupt(reason=reason),
         )

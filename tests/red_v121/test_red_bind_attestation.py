@@ -32,6 +32,7 @@ LVA = REPO_ROOT / "src" / "lva"
 COMMANDS = LVA / "contracts" / "commands.py"
 RUNTIME = LVA / "core" / "runtime.py"
 SERVER = LVA / "server.py"
+TAURI_SRC = REPO_ROOT / "apps" / "desktop-shell" / "src-tauri" / "src"
 
 
 # ------------------------------------------------------------- contract shape
@@ -210,3 +211,46 @@ def test_server_wiring_does_not_recurse():
         server_mod._runtime = None
         server_mod._hub_saga = None
         server_mod._journal = None
+
+
+# ------------------------------------------- the attested port must be the Hub
+def test_attested_port_matches_the_hub_control_face():
+    """The port the attestation probes must be the Hub control face.
+
+    Plan L527: "默认入口为 8080，child 通常分配 8081+；LVA 不依赖 child 端口".
+    The real Hub config (`config/application.json`) sets `webPort: 8080` and
+    `httpOnlyPort: 8081`.
+
+    Why this is a regression guard rather than a nicety: if the probed port has no
+    listener, `attest_for_port` returns `UnverifiedBind` and `control_allowed()`
+    stays False **forever**, even against a perfectly healthy Hub.  The Rust unit
+    fixtures use the same wrong number, so they cannot catch it -- that is exactly
+    how this shipped.
+    """
+    lib = read_text(TAURI_SRC / "lib.rs")
+    match = re.search(r"HUB_CONTROL_PORT\s*:\s*u16\s*=\s*(\d+)", lib)
+    assert match, "the attested port must be a named constant"
+    probed = int(match.group(1))
+
+    cfg = read_text(LVA / "config.py")
+    hub_port = re.search(r'HUB_PORT\s*=.*?["\'](\d+)["\']', cfg)
+    assert hub_port, "config.py must declare the Hub port"
+    declared = int(hub_port.group(1))
+
+    assert probed == declared, (
+        f"the Rust attestation probes port {probed} but the Hub control face is "
+        f"{declared} (plan L527: default entry is 8080). Probing a port with no "
+        "listener yields UNVERIFIED_BIND and permanently closes the control gate."
+    )
+
+
+def test_attested_port_is_not_a_child_port():
+    """LVA must not attest a child port; children get 8081+ (plan L527)."""
+    lib = read_text(TAURI_SRC / "lib.rs")
+    match = re.search(r"HUB_CONTROL_PORT\s*:\s*u16\s*=\s*(\d+)", lib)
+    assert match, "the attested port must be a named constant"
+    probed = int(match.group(1))
+    assert probed == 8080, (
+        f"the Hub control face is 8080 (plan L527); {probed} would be a child "
+        "port, and LVA does not depend on child ports"
+    )

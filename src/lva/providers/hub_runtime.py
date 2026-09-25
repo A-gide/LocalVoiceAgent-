@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Callable
 
 from ..contracts.enums import ErrorCode
@@ -35,6 +36,11 @@ class HubRuntimeSaga:
         #: The binding in effect before the current attempt (plan L636: a failed
         #: switch records it so an *explicit* rollback operation can re-bind).
         self.previous_binding: HubBinding | None = None
+        #: A conflict that the caller should be told about but that does not abort
+        #: the switch.  It has its own field because `_update_status` assigns
+        #: `last_error` from its argument, so anything stored there is erased by the
+        #: next status change.
+        self.pending_conflict: str | None = None
 
     def _update_status(
         self,
@@ -45,6 +51,31 @@ class HubRuntimeSaga:
         self.binding.last_error = last_error
         if self.on_binding_changed:
             self.on_binding_changed(self.binding)
+
+    def consume_conflict(self) -> str | None:
+        """Return and clear the pending conflict, so it is reported exactly once.
+
+        B5: the conflict is not an error -- plan 5.5 requires confirmation only for
+        *stopping* a preexisting model, not for loading a new one, so the load
+        proceeds.  But the code must be observable, otherwise
+        `MODEL_CONFLICT_REQUIRES_CONFIRMATION` is dead and neither a caller nor the
+        UI can tell the user that their old model is still resident.
+        """
+        conflict = self.pending_conflict
+        self.pending_conflict = None
+        return conflict
+
+    def publish_conflict(self) -> None:
+        """Expose the pending conflict on the binding, without consuming it.
+
+        Called after a switch settles so a caller reading the binding (or the UI
+        reading the published state) can see that the old model is still resident.
+        The status stays whatever the saga decided -- a conflict is not a failure.
+        """
+        if self.pending_conflict and self.binding.last_error is None:
+            self.binding.last_error = self.pending_conflict
+            if self.on_binding_changed:
+                self.on_binding_changed(self.binding)
 
     def rollback(self, previous: HubBinding) -> HubBinding:
         """Record the pre-attempt binding after a failed switch (L1275/L1278).
@@ -121,6 +152,15 @@ class HubRuntimeSaga:
                 except Exception as exc:
                     log.warning("Failed to stop old model %s: %s", old_model, exc)
             else:
+                # Recorded on its own field so the next `_update_status` (which
+                # assigns `last_error` from its argument) cannot erase it.  The
+                # load still proceeds: plan 5.5 requires confirmation for
+                # *stopping* a preexisting model, not for loading a new one.
+                self.pending_conflict = (
+                    f"{ErrorCode.MODEL_CONFLICT_REQUIRES_CONFIRMATION.value}: "
+                    f"old model {old_model} was preexisting/unknown and was left "
+                    "running; stopping it requires explicit confirmation"
+                )
                 log.warning(
                     "Old model %s was preexisting/unknown; stopping requires confirmation (%s)",
                     old_model,
@@ -155,7 +195,15 @@ class HubRuntimeSaga:
         # Step 5: COMMIT BINDING
         self.binding.active_model_id = target_model_id
         self.binding.load_origin = "loaded_by_lva"
+        # Pin the model on the inference client too.  Without this the client keeps
+        # answering from the Hub default, which is exactly the "a switch silently
+        # answers from the previous model" case the client documents as guarded.
+        if hasattr(self.inference, "bind_model"):
+            self.inference.bind_model(target_model_id)
         self._update_status("ready")
+        # Surface any conflict the caller should know about (B5).  Done after the
+        # status settles, because `_update_status` assigns `last_error` itself.
+        self.publish_conflict()
         log.info("Model switch saga successfully committed for %s", target_model_id)
         return self.binding
 
@@ -166,11 +214,16 @@ class HubRuntimeSaga:
         interval: float = 1.0,
     ) -> None:
         """Poll Hub until target model appears in loaded and /v1/models."""
-        start = asyncio.get_event_loop().time()
-        while asyncio.get_event_loop().time() - start < timeout:
+        # `get_event_loop()` is deprecated and returns a *new* loop when none is
+        # running; a monotonic clock is both correct and simpler here.
+        start = time.monotonic()
+        while time.monotonic() - start < timeout:
             try:
                 models = await self.inference.list_models()
-                if any(target_model_id in m for m in models):
+                # Exact identity, matching the conflict-resolution step below.
+                # A substring test would accept `qwen3-4b` when only
+                # `qwen3-4b-instruct` is actually loaded.
+                if target_model_id in set(models):
                     return
             except Exception:
                 pass

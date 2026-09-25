@@ -41,10 +41,15 @@ class LlamaCppHubControlClient:
         base_url: str = "http://127.0.0.1:8080",
         timeout: float = 10.0,
         transport: httpx.AsyncBaseTransport | None = None,
+        api_key: str = "",
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self.transport = transport
+        # The real Hub ships with `security.apiKeyEnabled: true`, so every
+        # management request must carry the key.  Held in memory only; never
+        # logged and never written to disk.
+        self.api_key = api_key
         self._verify_loopback_safety(self.base_url)
         self.handshake: HubHandshake | None = None
         self._operations: dict[str, "HubOperation"] = {}
@@ -60,9 +65,13 @@ class LlamaCppHubControlClient:
 
     async def get_version(self) -> dict:
         async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
-            resp = await client.get(f"{self.base_url}/api/sys/version")
+            resp = await client.get(f"{self.base_url}/api/sys/version", headers=self._auth_headers())
             resp.raise_for_status()
             return resp.json()
+
+    def _auth_headers(self) -> dict[str, str]:
+        """Management-request headers.  The key is never logged."""
+        return {"Authorization": f"Bearer {self.api_key}"} if self.api_key else {}
 
     # --------------------------------------------------------- handshake (L575)
     async def probe_handshake(self) -> HubHandshake:
@@ -80,7 +89,16 @@ class LlamaCppHubControlClient:
             self.handshake = HubHandshake.UNAVAILABLE
             return self.handshake
 
-        reported = info.get("version") if isinstance(info, dict) else None
+        # The real /api/sys/version nests its payload:
+        #   {"success":true,"data":{"tag":"v0.9.8.3","version":"0.9.8.3"}}
+        # Reading only the top level classified a healthy pinned Hub as DEGRADED,
+        # which would have disabled Hub control against every real deployment.
+        reported = None
+        if isinstance(info, dict):
+            payload = info.get("data") if isinstance(info.get("data"), dict) else info
+            reported = payload.get("version") or payload.get("tag")
+            if isinstance(reported, str) and reported.startswith("v"):
+                reported = reported[1:]
         self.handshake = classify_version(reported)
         log.info("Hub handshake: reported=%s verdict=%s", reported, self.handshake.value)
         return self.handshake
@@ -140,7 +158,7 @@ class LlamaCppHubControlClient:
 
     async def get_node_info(self) -> dict:
         async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
-            resp = await client.get(f"{self.base_url}/api/node/info")
+            resp = await client.get(f"{self.base_url}/api/node/info", headers=self._auth_headers())
             resp.raise_for_status()
             return resp.json()
 
@@ -164,7 +182,7 @@ class LlamaCppHubControlClient:
 
     async def list_models(self) -> list[dict]:
         async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
-            resp = await client.get(f"{self.base_url}/api/models/list")
+            resp = await client.get(f"{self.base_url}/api/models/list", headers=self._auth_headers())
             resp.raise_for_status()
             data = resp.json()
             if isinstance(data, list):
@@ -173,7 +191,7 @@ class LlamaCppHubControlClient:
 
     async def list_loaded(self) -> list[dict]:
         async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
-            resp = await client.get(f"{self.base_url}/api/models/loaded")
+            resp = await client.get(f"{self.base_url}/api/models/loaded", headers=self._auth_headers())
             resp.raise_for_status()
             data = resp.json()
             if isinstance(data, list):
@@ -182,13 +200,13 @@ class LlamaCppHubControlClient:
 
     async def refresh_models(self) -> dict:
         async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
-            resp = await client.get(f"{self.base_url}/api/models/refresh")
+            resp = await client.get(f"{self.base_url}/api/models/refresh", headers=self._auth_headers())
             resp.raise_for_status()
             return resp.json()
 
     async def get_profile(self, model_id: str) -> dict:
         async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
-            resp = await client.get(f"{self.base_url}/api/models/config/get", params={"modelId": model_id})
+            resp = await client.get(f"{self.base_url}/api/models/config/get", params={"modelId": model_id}, headers=self._auth_headers())
             if resp.status_code == 404:
                 raise RuntimeError(
                     f"Model profile not found for '{model_id}' ({ErrorCode.PROFILE_REQUIRED})"
@@ -221,6 +239,7 @@ class LlamaCppHubControlClient:
             resp = await client.post(
                 f"{self.base_url}/api/models/load",
                 json=request.model_dump(exclude_none=True),
+                headers=self._auth_headers(),
             )
             resp.raise_for_status()
             return resp.json()
@@ -232,6 +251,7 @@ class LlamaCppHubControlClient:
             resp = await client.post(
                 f"{self.base_url}/api/models/stop",
                 json={"modelId": model_id},
+                headers=self._auth_headers(),
             )
             resp.raise_for_status()
             return resp.json()

@@ -194,8 +194,8 @@ mod tests {
     const TABLE: &str = "\
   Proto  Local Address          Foreign Address        State           PID\n\
   TCP    0.0.0.0:135            0.0.0.0:0              LISTENING       2040\n\
-  TCP    127.0.0.1:8089         0.0.0.0:0              LISTENING       4411\n\
-  TCP    192.168.1.20:8089      0.0.0.0:0              LISTENING       4411\n\
+  TCP    127.0.0.1:8080         0.0.0.0:0              LISTENING       4411\n\
+  TCP    192.168.1.20:8080      0.0.0.0:0              LISTENING       4411\n\
   TCP    [::]:135               [::]:0                 LISTENING       2040\n\
   TCP    [::1]:9000             [::]:0                 LISTENING       5510\n\
   TCP    127.0.0.1:7000         0.0.0.0:0              ESTABLISHED     1234\n";
@@ -238,10 +238,10 @@ mod tests {
     fn a_loopback_only_port_verifies_and_allows_control() {
         let rows = vec![ListenerRow {
             address: IpAddr::from_str("127.0.0.1").unwrap(),
-            port: 8089,
+            port: 8080,
             owning_process: Some(4411),
         }];
-        let (att, owner) = attest_for_port(&rows, 8089, "att-1");
+        let (att, owner) = attest_for_port(&rows, 8080, "att-1");
         assert_eq!(att.status, AttestationStatus::VerifiedLoopback);
         assert!(att.reason_code.is_none());
         assert!(att.control_allowed());
@@ -252,10 +252,10 @@ mod tests {
     fn an_all_interfaces_port_never_verifies() {
         let rows = vec![ListenerRow {
             address: IpAddr::from_str("0.0.0.0").unwrap(),
-            port: 8089,
+            port: 8080,
             owning_process: Some(4411),
         }];
-        let (att, _) = attest_for_port(&rows, 8089, "att-2");
+        let (att, _) = attest_for_port(&rows, 8080, "att-2");
         assert_eq!(att.status, AttestationStatus::VerifiedNonLoopback);
         assert!(!att.control_allowed(), "only a proven loopback bind may allow control");
     }
@@ -263,16 +263,16 @@ mod tests {
     #[test]
     fn mixed_loopback_and_wildcard_never_verifies() {
         let rows = vec![
-            ListenerRow { address: IpAddr::from_str("127.0.0.1").unwrap(), port: 8089, owning_process: Some(1) },
-            ListenerRow { address: IpAddr::from_str("0.0.0.0").unwrap(), port: 8089, owning_process: Some(1) },
+            ListenerRow { address: IpAddr::from_str("127.0.0.1").unwrap(), port: 8080, owning_process: Some(1) },
+            ListenerRow { address: IpAddr::from_str("0.0.0.0").unwrap(), port: 8080, owning_process: Some(1) },
         ];
-        let (att, _) = attest_for_port(&rows, 8089, "att-3");
+        let (att, _) = attest_for_port(&rows, 8080, "att-3");
         assert!(!att.control_allowed(), "one wildcard row is enough to deny control");
     }
 
     #[test]
     fn an_empty_table_is_unverified_rather_than_verified() {
-        let (att, owner) = attest_for_port(&[], 8089, "att-4");
+        let (att, owner) = attest_for_port(&[], 8080, "att-4");
         assert_eq!(att.status, AttestationStatus::UnverifiedBind);
         assert!(!att.control_allowed(), "absence of evidence is not proof of a loopback bind");
         assert_eq!(att.reason_code, Some(HubBindReason::HubInfoUnavailable));
@@ -283,7 +283,7 @@ mod tests {
     fn garbage_input_yields_no_rows_and_no_verified_verdict() {
         let rows = parse_listener_table("not a table at all\n\n   \n");
         assert!(rows.is_empty());
-        assert!(!attest_for_port(&rows, 8089, "att-5").0.control_allowed());
+        assert!(!attest_for_port(&rows, 8080, "att-5").0.control_allowed());
     }
 
     #[test]
@@ -295,8 +295,8 @@ mod tests {
     #[test]
     fn only_rows_for_the_requested_port_are_evidence() {
         let rows = parse_listener_table(TABLE);
-        // 8089 has one loopback and one concrete address in the fixture.
-        let (att, owner) = attest_for_port(&rows, 8089, "att-6");
+        // 8080 has one loopback and one concrete address in the fixture.
+        let (att, owner) = attest_for_port(&rows, 8080, "att-6");
         assert_eq!(owner, Some(4411));
         assert!(!att.control_allowed(), "a concrete non-loopback row denies control");
 

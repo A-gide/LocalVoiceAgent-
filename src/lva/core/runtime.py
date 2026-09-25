@@ -354,6 +354,45 @@ class RuntimeController:
             return self._hub_binding_revision
         return None
 
+    def _schedule_hub_saga(self, c_type: str, payload: Any) -> bool:
+        """Hand a Hub control command to the async saga and return whether it ran.
+
+        `execute_command` is synchronous, so it cannot await the saga; it must
+        schedule the coroutine on the running loop instead.  Returns ``False`` when
+        no loop is running (a synchronous caller outside an event loop), so the
+        command is reported as failed rather than silently succeeding -- the exact
+        failure this replaces.
+        """
+        import asyncio
+
+        saga = self._hub_saga
+        if saga is None:
+            return False
+
+        if c_type == "hub.refresh":
+            # Nothing to delegate: the saga has no refresh step.  Reporting
+            # `delegated_to_saga` would overstate what actually happened.
+            return False
+
+        async def _run() -> None:
+            try:
+                if c_type == "hub.bind_model":
+                    await saga.switch_model(payload.model_id)
+                elif c_type == "hub.sleep_bound_model":
+                    await saga.sleep_bound_model()
+            except Exception as exc:  # noqa: BLE001 - reported through the binding
+                log.exception("Hub saga step %s failed: %s", c_type, exc)
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            log.warning(
+                "Hub command %s cannot be scheduled: no running event loop", c_type
+            )
+            return False
+        loop.create_task(_run())
+        return True
+
     def _memory_target_id(self, cmd: CommandEnvelope) -> str | None:
         payload = cmd.payload
         if cmd.type == "memory.correct":
@@ -626,11 +665,31 @@ class RuntimeController:
                     ),
                 )
             if self._hub_saga is not None:
+                # The dispatcher is synchronous while the saga is async, so the
+                # work has to be *scheduled*.  Reporting `delegated_to_saga`
+                # without scheduling anything is what made this branch dead: the
+                # command returned `applied` and the model never switched.
+                scheduled = self._schedule_hub_saga(c_type, payload)
                 return CommandResult(
                     command_id=cmd.command_id,
-                    status="applied",
+                    status="accepted" if scheduled else "rejected",
                     snapshot_version=self._snapshot_version,
-                    data={"type": c_type, "status": "delegated_to_saga"},
+                    data={
+                        "type": c_type,
+                        "status": "delegated_to_saga" if scheduled else "saga_not_running",
+                    },
+                    error=None
+                    if scheduled
+                    else ErrorEnvelope(
+                        code=ErrorCode.HUB_UNAVAILABLE,
+                        message=(
+                            "the Hub saga could not be scheduled; no event loop is "
+                            "running in this process"
+                        ),
+                        severity="error",
+                        component="core.hub",
+                        correlation_id=cmd.command_id,
+                    ),
                 )
             if c_type == "hub.refresh":
                 return CommandResult(
@@ -662,13 +721,6 @@ class RuntimeController:
                 snapshot_version=self._snapshot_version,
                 data={"type": c_type},
             )
-        if False:
-            return CommandResult(
-                command_id=cmd.command_id,
-                status="accepted",
-                snapshot_version=self._snapshot_version,
-            )
-
         return CommandResult(
             command_id=cmd.command_id,
             status="accepted",

@@ -63,6 +63,10 @@ SERVICE_PORT = int(os.environ.get("LVA_PORT", "8765"))
 # PR-015: the Hub control face.  LVA no longer owns a llama-server port; this is
 # the Hub the Core talks to, kept as a named constant so nothing hardcodes it.
 HUB_PORT = int(os.environ.get("LVA_HUB_PORT", "8080"))
+#: Local Hub API key.  The Hub ships with `security.apiKeyEnabled: true`, so the
+#: management client must present it.  Held in memory only -- never logged and
+#: never written to disk; empty means "this Hub does not require a key".
+HUB_API_KEY = os.environ.get("LVA_HUB_API_KEY", "")
 
 DB_PATH = DATA / "memory.db"
 

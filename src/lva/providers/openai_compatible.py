@@ -6,6 +6,7 @@ from typing import AsyncIterator, Callable
 import httpx
 
 from ..contracts.ids import TurnId
+from .. import config as C
 
 log = logging.getLogger("lva.providers.openai_compatible")
 
@@ -13,12 +14,14 @@ log = logging.getLogger("lva.providers.openai_compatible")
 class OpenAICompatibleProvider:
     def __init__(
         self,
-        base_url: str = "http://127.0.0.1:8080/v1",
+        base_url: str | None = None,
         api_key: str = "",
         model: str = "default",
         timeout: float = 60.0,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        # Single source: the configured Hub inference face (see
+        # `config.hub_base_url`).
+        self.base_url = (base_url or C.hub_base_url(with_v1=True)).rstrip("/")
         self.api_key = api_key
         self.model = model
         self.timeout = timeout

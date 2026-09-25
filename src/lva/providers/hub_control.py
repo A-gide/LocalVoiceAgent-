@@ -6,6 +6,7 @@ from urllib.parse import urlparse
 import httpx
 
 from ..contracts.enums import ErrorCode
+from .. import config as C
 from .hub_contracts_v0_9_8_3 import (
     HubHandshake,
     HubLoadRequestV0_9_8_3,
@@ -38,12 +39,14 @@ class HubOperation:
 class LlamaCppHubControlClient:
     def __init__(
         self,
-        base_url: str = "http://127.0.0.1:8080",
+        base_url: str | None = None,
         timeout: float = 10.0,
         transport: httpx.AsyncBaseTransport | None = None,
         api_key: str = "",
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        # Default to the configured Hub endpoint rather than a local literal: the
+        # port must have exactly one source (see `config.hub_base_url`).
+        self.base_url = (base_url or C.hub_base_url()).rstrip("/")
         self.timeout = timeout
         self.transport = transport
         # The real Hub ships with `security.apiKeyEnabled: true`, so every

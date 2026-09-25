@@ -164,12 +164,20 @@ def test_python_provider_defaults_agree_with_the_hub_port():
 
 
 def test_python_provider_defaults_actually_use_the_hub_port():
-    """The providers must *default to* the Hub port, not merely avoid others."""
-    hub_port = _py_int_const(read_text(LVA / "config.py"), "HUB_PORT")
+    """The providers must reach the Hub port through config, not by copying it.
+
+    Before R25 each provider carried its own literal default.  That is what made
+    the R20 wrong-port bug possible, so the property is now the opposite: the
+    provider must carry **no** port literal and must default through
+    `config.hub_base_url()`.  (This assertion was inverted when the single source
+    of truth landed -- the old form required the duplication that R25 removes.)
+    """
     for name in ("hub_control.py", "hub_inference.py", "openai_compatible.py"):
         src = read_text(LVA / "providers" / name)
-        ports = {int(m) for m in re.findall(r"127\.0\.0\.1:(\d{2,5})", src)}
-        assert ports == {hub_port}, (
-            f"providers/{name} defaults to {sorted(ports)} but the Hub port is "
-            f"{hub_port}"
+        assert not re.search(r"127\.0\.0\.1:\d{2,5}", src), (
+            f"providers/{name} still hardcodes a loopback endpoint; the port must "
+            "come from config so there is exactly one place to change it"
+        )
+        assert "hub_base_url" in src, (
+            f"providers/{name} must default through `config.hub_base_url()`"
         )

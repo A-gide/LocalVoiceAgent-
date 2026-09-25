@@ -19,6 +19,7 @@ from typing import AsyncIterator, Callable
 import httpx
 
 from ..contracts.enums import ErrorCode
+from .. import config as C
 from ..contracts.errors import ErrorEnvelope
 from ..contracts.ids import TurnId
 
@@ -63,13 +64,14 @@ def _classify_status(status: int) -> ErrorCode:
 class LlamaCppHubInferenceClient:
     def __init__(
         self,
-        base_url: str = "http://127.0.0.1:8080",
+        base_url: str | None = None,
         api_key: str = "",
         timeout: float = 120.0,
         transport: httpx.AsyncBaseTransport | None = None,
         bound_model_id: str | None = None,
     ) -> None:
-        self.base_url = base_url.rstrip("/")
+        # Single source: the configured Hub endpoint (see `config.hub_base_url`).
+        self.base_url = (base_url or C.hub_base_url()).rstrip("/")
         self.api_key = api_key
         self.timeout = timeout
         self.transport = transport
@@ -204,4 +206,3 @@ class LlamaCppHubInferenceClient:
                         content = delta.get("content", "")
                         if content:
                             yield content
-

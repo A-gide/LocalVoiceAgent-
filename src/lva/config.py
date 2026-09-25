@@ -43,20 +43,6 @@ CAPTURE_RATE = 48000      # device rate pulled from WASAPI, then resampled
 BLOCK_FRAMES = 1024       # frames per capture callback
 VAD_WINDOW = 512          # samples per VAD decision window @16k (32 ms)
 
-# ---------------------------------------------------------------------- llm
-# PR-015 (plan L1263/L1285): the default LLM endpoint is the **Hub inference
-# face**, not a bare child llama-server.  The Hub is the model runtime authority
-# (hard constraint 2); a direct child endpoint must not be the default.
-LLM_BASE_URL = os.environ.get("LVA_LLM_URL", "http://127.0.0.1:8080/v1")
-LLM_API_KEY = os.environ.get("LVA_LLM_KEY", "")   # never written to logs
-LLM_MODEL = os.environ.get("LVA_LLM_MODEL", "local-live-llm")
-LLM_TIMEOUT = float(os.environ.get("LVA_LLM_TIMEOUT", "180"))
-LLM_CONTEXT = int(os.environ.get("LVA_LLM_CONTEXT", "8192"))
-LLM_MAX_TOKENS = int(os.environ.get("LVA_LLM_MAX_TOKENS", "512"))
-# A deep question spends most of its budget inside the thinking pass before the
-# answer even starts, so it gets a larger ceiling.
-LLM_DEEP_MAX_TOKENS = int(os.environ.get("LVA_LLM_DEEP_MAX_TOKENS", "2048"))
-
 # ---------------------------------------------------------------- services
 SERVICE_HOST = "127.0.0.1"        # loopback only; never 0.0.0.0
 SERVICE_PORT = int(os.environ.get("LVA_PORT", "8765"))
@@ -67,6 +53,34 @@ HUB_PORT = int(os.environ.get("LVA_HUB_PORT", "8080"))
 #: management client must present it.  Held in memory only -- never logged and
 #: never written to disk; empty means "this Hub does not require a key".
 HUB_API_KEY = os.environ.get("LVA_HUB_API_KEY", "")
+
+
+def hub_base_url(*, with_v1: bool = False) -> str:
+    """The single derivation of the Hub endpoint.
+
+    Callers must use this instead of building the URL from `SERVICE_HOST` and
+    `HUB_PORT` themselves, and providers must default to it instead of carrying
+    their own literal.  The R20 incident (a wrong port in one of six copies) is the
+    reason this exists: one fact, one place to change it.
+    """
+    base = f"http://{SERVICE_HOST}:{HUB_PORT}"
+    return f"{base}/v1" if with_v1 else base
+
+
+# ---------------------------------------------------------------------- llm
+# PR-015 (plan L1263/L1285): the default LLM endpoint is the **Hub inference
+# face**, not a bare child llama-server.  The Hub is the model runtime authority
+# (hard constraint 2); a direct child endpoint must not be the default.  Derived
+# from `hub_base_url()` so the port keeps a single source (R25/B7).
+LLM_BASE_URL = os.environ.get("LVA_LLM_URL", "") or hub_base_url(with_v1=True)
+LLM_API_KEY = os.environ.get("LVA_LLM_KEY", "")   # never written to logs
+LLM_MODEL = os.environ.get("LVA_LLM_MODEL", "local-live-llm")
+LLM_TIMEOUT = float(os.environ.get("LVA_LLM_TIMEOUT", "180"))
+LLM_CONTEXT = int(os.environ.get("LVA_LLM_CONTEXT", "8192"))
+LLM_MAX_TOKENS = int(os.environ.get("LVA_LLM_MAX_TOKENS", "512"))
+# A deep question spends most of its budget inside the thinking pass before the
+# answer even starts, so it gets a larger ceiling.
+LLM_DEEP_MAX_TOKENS = int(os.environ.get("LVA_LLM_DEEP_MAX_TOKENS", "2048"))
 
 DB_PATH = DATA / "memory.db"
 

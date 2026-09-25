@@ -188,7 +188,7 @@ def get_hub_saga() -> "HubRuntimeSaga":
         from .providers.hub_inference import LlamaCppHubInferenceClient
         from .providers.hub_runtime import HubRuntimeSaga
 
-        base_url = f"http://{C.SERVICE_HOST}:{C.HUB_PORT}"
+        base_url = C.hub_base_url()
         # The real Hub ships with `security.apiKeyEnabled: true`, so the clients
         # must carry the key or every management request 401s.  The key lives in
         # memory only -- never logged, never written to disk.

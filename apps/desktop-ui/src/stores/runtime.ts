@@ -99,7 +99,26 @@ export const useRuntimeStore = defineStore('runtime', () => {
 
   // Actions
   function setMuted(muted: boolean) {
+    // Output Mute must reach the Core: a local ref changes the icon and leaves
+    // the speakers playing (PR-024 / plan L989).  The Core publishes the state,
+    // so the assignment below is only the optimistic echo of the command.
     state.value.playback.muted = muted;
+    TauriBridge.sendCoreCommand(
+      'playback.set_muted',
+      { type: 'playback.set_muted', muted },
+    )
+      .then((result) => {
+        if (result.status !== 'applied') {
+          // The Core refused (e.g. the device rejected it): do not keep showing a
+          // mute that did not happen.
+          state.value.playback.muted = !muted;
+          lastError.value = result.error?.message || 'Output mute was refused';
+        }
+      })
+      .catch((err) => {
+        state.value.playback.muted = !muted;
+        lastError.value = err?.toString() || 'Output mute failed';
+      });
   }
 
   function mutePlayback() {

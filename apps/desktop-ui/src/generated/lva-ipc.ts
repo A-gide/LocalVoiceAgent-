@@ -12,7 +12,6 @@ export type CoreMicStopped = boolean;
 export type ManagedScreenpipeStopped = boolean | null;
 export type ExternalScreenpipeDetected = boolean;
 export type CurrentGeneration = number;
-export type Muted = boolean;
 export type Name = string;
 export type ServiceState = "stopped" | "starting" | "healthy" | "degraded" | "failed";
 export type Ownership = "spawned" | "adopted" | "external" | "unknown";
@@ -130,6 +129,7 @@ export type Payload =
   | HubBindModelPayload
   | HubSleepBoundModelPayload
   | HubAttestBindPayload
+  | PlaybackSetMutedPayload
   | SettingsUpdatePublicPayload
   | SettingsSetSecretPayload
   | SettingsClearSecretPayload
@@ -141,6 +141,7 @@ export type Payload =
 export type Text = string;
 export type ModelId = string;
 export type Force = boolean;
+export type Muted = boolean;
 export type Autostart = boolean | null;
 export type PetDormancyMode = boolean | null;
 export type IdleVramReleaseMins = number | null;
@@ -209,7 +210,7 @@ export interface PlaybackState {
   active?: boolean;
   device_name?: string | null;
   current_generation?: CurrentGeneration;
-  muted?: Muted;
+  muted?: boolean;
 }
 export interface Services {
   [k: string]: ServiceStatus;
@@ -520,6 +521,21 @@ export interface HubSleepBoundModelPayload {
 export interface HubAttestBindPayload {
   type: "hub.attest_bind";
   attestation: HubBindAttestation;
+}
+/**
+ * Output Mute / 静音播放 (PR-024, plan L989 / L321 / L1377).
+ *
+ * Stops and suppresses **speaker playback only**.  It deliberately does not
+ * touch capture: the Core mic, VAD/ASR, Journal and reality capture keep their
+ * current state, and stopping capture remains Privacy Pause's job.
+ *
+ * The intent travels as a command because a local UI flag cannot stop audio
+ * that the Core owns -- the shipped version changed the icon and left the
+ * speakers playing.
+ */
+export interface PlaybackSetMutedPayload {
+  type: "playback.set_muted";
+  muted: Muted;
 }
 export interface SettingsUpdatePublicPayload {
   type: "settings.update_public";

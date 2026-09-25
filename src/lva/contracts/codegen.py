@@ -48,7 +48,10 @@ RS_PATH = (
 # contract requires re-pinning this on purpose; the chain fails closed otherwise.
 # Re-pinned 2026-09-24 for PR-012: the contract gained the inbound
 # `hub.attest_bind` command (approved design, hard-constraint-5 authorization).
-EXPECTED_SCHEMA_SHA256 = "050a260d73e81bc79a1e7330eff0ef3c984835e3d6d973bedd2cae33a8dc4ae6"
+# Re-pinned 2026-09-25 for PR-024: the contract gained `playback.set_muted` so
+# Output Mute reaches the Core instead of changing a local UI ref (approved
+# owner authorization, hard-constraint-5).
+EXPECTED_SCHEMA_SHA256 = "cdfc93e03a0db36c3781e2fbc88e0e7f5fe56e382f6291da1ad36f590e664a27"
 
 _NPM_ROOT = REPO_ROOT / "apps" / "desktop-ui"
 _TYPIFY_DRIVER = (

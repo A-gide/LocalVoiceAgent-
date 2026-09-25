@@ -1352,6 +1352,19 @@ that travels to the WebView -- so there is exactly one verdict shape in the
 contract rather than two that could drift apart.*/
     #[serde(rename = "hub.attest_bind")]
     HubAttestBind { attestation: HubBindAttestation },
+    /**PlaybackSetMutedPayload
+
+Output Mute / 静音播放 (PR-024, plan L989 / L321 / L1377).
+
+Stops and suppresses **speaker playback only**.  It deliberately does not
+touch capture: the Core mic, VAD/ASR, Journal and reality capture keep their
+current state, and stopping capture remains Privacy Pause's job.
+
+The intent travels as a command because a local UI flag cannot stop audio
+that the Core owns -- the shipped version changed the icon and left the
+speakers playing.*/
+    #[serde(rename = "playback.set_muted")]
+    PlaybackSetMuted { muted: bool },
     ///SettingsUpdatePublicPayload
     #[serde(rename = "settings.update_public")]
     SettingsUpdatePublic {
@@ -1408,6 +1421,21 @@ contract rather than two that could drift apart.*/
     ServiceRetry { service_name: ::std::string::String },
     #[serde(rename = "diagnostics.export_redacted")]
     DiagnosticsExportRedacted,
+}
+/**Output Mute / 静音播放 (PR-024, plan L989 / L321 / L1377).
+
+Stops and suppresses **speaker playback only**.  It deliberately does not
+touch capture: the Core mic, VAD/ASR, Journal and reality capture keep their
+current state, and stopping capture remains Privacy Pause's job.
+
+The intent travels as a command because a local UI flag cannot stop audio
+that the Core owns -- the shipped version changed the icon and left the
+speakers playing.*/
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct PlaybackSetMutedPayload {
+    pub muted: bool,
+    #[serde(rename = "type")]
+    pub type_: ::std::string::String,
 }
 ///`PlaybackState`
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug, Default)]

@@ -287,10 +287,33 @@ class Player:
         self.stale_dropped = 0
         # What is audible right now, for the echo canceller.
         self.reference = PlaybackReference()
+        # Output Mute (PR-024).  A muted player must *stop* sound, not merely
+        # skip new audio: the queue is flushed on the transition, and anything
+        # queued while muted is dropped rather than held, so unmuting cannot
+        # replay speech the user already silenced.
+        self._muted = threading.Event()
 
     @property
     def generation(self) -> int:
         return self._generation
+
+    @property
+    def muted(self) -> bool:
+        return self._muted.is_set()
+
+    def set_muted(self, muted: bool) -> None:
+        """Stop and suppress playback, or allow it again (PR-024).
+
+        Entering mute flushes: the generation bump is what actually silences the
+        audio, and the drain frees what was queued for a sentence already under
+        way.  Leaving mute does not restore that audio -- the user asked for it to
+        be silenced, so replaying it afterwards would be a surprise.
+        """
+        if muted:
+            self._muted.set()
+            self.flush()
+        else:
+            self._muted.clear()
 
     def _callback(self, outdata, frames, time_info, status):  # noqa: ANN001
         need = frames
@@ -340,6 +363,10 @@ class Player:
         x = np.asarray(samples, dtype=np.float32)
         if sample_rate != self.rate:
             x = resample(x, sample_rate, self.rate)
+        if self._muted.is_set():
+            # Dropped, not held: holding it would let a later unmute play speech
+            # the user silenced.
+            return
         if x.size:
             self._finished.clear()
             self._q.put((self._generation if gen is None else gen,
@@ -432,10 +459,25 @@ class NullPlayer:
         self.played_samples = 0
         self.stale_dropped = 0
         self._paused = threading.Event()
+        # Same Output Mute semantics as the real player, so a test exercises the
+        # product's mute path rather than a simpler one that only exists in tests.
+        self._muted = threading.Event()
 
     @property
     def generation(self) -> int:
         return self._generation
+
+    @property
+    def muted(self) -> bool:
+        return self._muted.is_set()
+
+    def set_muted(self, muted: bool) -> None:
+        """Stop and suppress playback, or allow it again (PR-024)."""
+        if muted:
+            self._muted.set()
+            self.flush()
+        else:
+            self._muted.clear()
 
     def start(self) -> None:
         pass
@@ -459,6 +501,9 @@ class NullPlayer:
     def play(self, samples: np.ndarray, sample_rate: int, gen: int | None = None) -> None:
         x = np.asarray(samples, dtype=np.float32)
         if not x.size:
+            return
+        if self._muted.is_set():
+            # Dropped, not held: a later unmute must not play silenced speech.
             return
         self._finished.clear()
         dur = x.size / float(sample_rate)

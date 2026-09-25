@@ -72,6 +72,22 @@ class HubAttestBindPayload(BaseCommandPayload):
     attestation: HubBindAttestation
 
 
+class PlaybackSetMutedPayload(BaseCommandPayload):
+    """Output Mute / 静音播放 (PR-024, plan L989 / L321 / L1377).
+
+    Stops and suppresses **speaker playback only**.  It deliberately does not
+    touch capture: the Core mic, VAD/ASR, Journal and reality capture keep their
+    current state, and stopping capture remains Privacy Pause's job.
+
+    The intent travels as a command because a local UI flag cannot stop audio
+    that the Core owns -- the shipped version changed the icon and left the
+    speakers playing.
+    """
+
+    type: Literal["playback.set_muted"]
+    muted: bool
+
+
 class MemorySearchPayload(BaseCommandPayload):
     type: Literal["memory.search"]
     query: str
@@ -168,6 +184,7 @@ CommandPayload = Annotated[
         HubBindModelPayload,
         HubSleepBoundModelPayload,
         HubAttestBindPayload,
+        PlaybackSetMutedPayload,
         SettingsUpdatePublicPayload,
         SettingsSetSecretPayload,
         SettingsClearSecretPayload,

@@ -102,6 +102,10 @@ function handleMouseDown(e: MouseEvent) {
 }
 
 onMounted(async () => {
+  // PR-031: put the window back where the user left it, clamped onto a monitor
+  // that still exists.  This runs before the snapshot fetch so a stale position
+  // is corrected even if the Core is slow to answer.
+  await geometry.restoreSavedGeometry();
   await runtime.fetchSnapshot();
 });
 </script>

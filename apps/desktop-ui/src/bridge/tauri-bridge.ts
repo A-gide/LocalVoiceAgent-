@@ -55,6 +55,14 @@ export interface ServiceProcessInfo {
   pid: number | null;
 }
 
+/** Persisted window position and size, in logical coordinates (PR-031). */
+export interface SavedWindowGeometry {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface FullServicesStatus {
   llama_server: ServiceProcessInfo;
   open_llm_vtuber: ServiceProcessInfo;
@@ -309,6 +317,20 @@ export const TauriBridge = {
 
   async setAutostartStatus(enabled: boolean): Promise<boolean> {
     return invokeTauri<boolean>('set_autostart_status', { enabled });
+  },
+
+  /** Saved pet-window geometry, or null when nothing usable was stored (PR-031). */
+  async getWindowGeometry(): Promise<SavedWindowGeometry | null> {
+    return invokeTauri<SavedWindowGeometry | null>('get_window_geometry');
+  },
+
+  async setWindowGeometry(geometry: SavedWindowGeometry): Promise<void> {
+    return invokeTauri<void>('set_window_geometry', { ...geometry });
+  },
+
+  /** Forget the saved geometry, so Reset Position survives a restart. */
+  async clearWindowGeometry(): Promise<void> {
+    return invokeTauri<void>('clear_window_geometry');
   },
 
   async listenEvent(callback: (event: EventEnvelope) => void): Promise<() => void> {

@@ -309,6 +309,7 @@
               "memory.correct": "#/$defs/MemoryCorrectPayload",
               "memory.hard_delete": "#/$defs/MemoryHardDeletePayload",
               "memory.search": "#/$defs/MemorySearchPayload",
+              "playback.set_muted": "#/$defs/PlaybackSetMutedPayload",
               "runtime.get_snapshot": "#/$defs/RuntimeGetSnapshotPayload",
               "runtime.restore_mode": "#/$defs/RuntimeRestoreModePayload",
               "runtime.set_mode": "#/$defs/RuntimeSetModePayload",
@@ -348,6 +349,9 @@
             },
             {
               "$ref": "#/$defs/HubAttestBindPayload"
+            },
+            {
+              "$ref": "#/$defs/PlaybackSetMutedPayload"
             },
             {
               "$ref": "#/$defs/SettingsUpdatePublicPayload"
@@ -1404,6 +1408,26 @@
       ],
       "title": "Ownership",
       "type": "string"
+    },
+    "PlaybackSetMutedPayload": {
+      "description": "Output Mute / 静音播放 (PR-024, plan L989 / L321 / L1377).\n\nStops and suppresses **speaker playback only**.  It deliberately does not\ntouch capture: the Core mic, VAD/ASR, Journal and reality capture keep their\ncurrent state, and stopping capture remains Privacy Pause's job.\n\nThe intent travels as a command because a local UI flag cannot stop audio\nthat the Core owns -- the shipped version changed the icon and left the\nspeakers playing.",
+      "properties": {
+        "type": {
+          "const": "playback.set_muted",
+          "title": "Type",
+          "type": "string"
+        },
+        "muted": {
+          "title": "Muted",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "muted"
+      ],
+      "title": "PlaybackSetMutedPayload",
+      "type": "object"
     },
     "PlaybackState": {
       "properties": {

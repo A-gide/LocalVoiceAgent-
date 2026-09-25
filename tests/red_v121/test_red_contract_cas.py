@@ -71,6 +71,12 @@ CAS_FREE: tuple[str, ...] = (
     # PR-012: an inbound attestation report is not a control action, so it carries
     # no CAS precondition -- it is the very thing that can *lift* the control gate.
     "hub.attest_bind",
+    # PR-024: Output Mute is an output control with no conflicting aggregate to
+    # guard -- it cannot clobber a concurrent edit, so it needs no CAS.  Registered
+    # here under the owner authorization for the contract change (hard constraint 5);
+    # the alternative was a local UI ref that changed the icon and left the speakers
+    # playing, which plan L989/L1377 forbid.
+    "playback.set_muted",
 )
 
 # Hub control commands are gated by the bind attestation (plan L665), not by the
@@ -99,6 +105,7 @@ PAYLOAD_CLASS: dict[str, str] = {
     "hub.bind_model": "HubBindModelPayload",
     "hub.sleep_bound_model": "HubSleepBoundModelPayload",
     "hub.attest_bind": "HubAttestBindPayload",
+    "playback.set_muted": "PlaybackSetMutedPayload",
     "settings.update_public": "SettingsUpdatePublicPayload",
     "settings.set_secret": "SettingsSetSecretPayload",
     "settings.clear_secret": "SettingsClearSecretPayload",
@@ -131,6 +138,7 @@ MINIMAL_PAYLOAD: dict[str, dict[str, Any]] = {
     "hub.refresh": {},
     "hub.bind_model": {"model_id": "m1"},
     "hub.sleep_bound_model": {},
+    "playback.set_muted": {"muted": True},
     "settings.update_public": {},
     "settings.set_secret": {"secret_type": "cloud_api_key", "secret_value": "x"},
     "settings.clear_secret": {"secret_type": "cloud_api_key"},

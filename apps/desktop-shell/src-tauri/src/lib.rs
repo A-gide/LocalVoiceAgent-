@@ -3,6 +3,7 @@ pub mod bridge;
 pub mod core_supervisor;
 pub mod crypto;
 pub mod generated;
+pub mod geometry;
 pub mod hotkey;
 pub mod managed_capture;
 pub mod network_attestation;
@@ -332,6 +333,41 @@ fn update_settings(new_settings: AppSettings, sm: State<Arc<SettingsManager>>) -
     sm.update_settings(new_settings)
 }
 
+/// The saved pet-window geometry, or `null` when nothing usable was stored.
+///
+/// The WebView asks for this on mount and clamps it onto a monitor that exists
+/// before moving the window (PR-030/031, plan §8.3): a position saved on a
+/// monitor that has since been unplugged would otherwise place the window
+/// off-screen with no way to reach it.
+#[tauri::command]
+fn get_window_geometry() -> Option<geometry::WindowGeometry> {
+    geometry::load_geometry()
+}
+
+/// Persist the pet-window geometry.
+///
+/// A degenerate record is refused rather than stored: saving it would make the
+/// next start restore a window nobody can see.
+#[tauri::command]
+fn set_window_geometry(
+    x: f64,
+    y: f64,
+    width: f64,
+    height: f64,
+) -> Result<(), String> {
+    geometry::save_geometry(geometry::WindowGeometry { x, y, width, height })
+}
+
+/// Forget the saved geometry, so the next start uses the default placement.
+///
+/// This is what Reset Position calls: clamping moves the window now, and clearing
+/// the record makes the reset survive a restart instead of being undone by the
+/// saved position that was just declared bad.
+#[tauri::command]
+fn clear_window_geometry() -> Result<(), String> {
+    geometry::clear_geometry()
+}
+
 #[tauri::command]
 fn rebuild_pet_benchmark(app: AppHandle) -> Result<f64, String> {
     mark_user_activity();
@@ -416,6 +452,9 @@ pub fn run() {
             clear_secret,
             send_core_command,
             update_settings,
+            get_window_geometry,
+            set_window_geometry,
+            clear_window_geometry,
             rebuild_pet_benchmark,
             get_autostart_status,
             set_autostart_status

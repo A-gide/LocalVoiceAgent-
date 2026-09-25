@@ -220,6 +220,7 @@ def get_runtime() -> RuntimeController:
             on_interrupt_action=_abort_playback,
             on_mode_changed=_sync_legacy_mode,
             hub_saga=get_hub_saga(),
+            on_playback_mute=_set_playback_muted,
         )
         # PR-020/L1335: the Core mic stop must be a *physical* stop, so the
         # coordinator drives the real device instead of flipping its own flag.
@@ -285,6 +286,24 @@ def _abort_playback(reason: str) -> None:
             _core.cancel_turn()
     except Exception as exc:  # noqa: BLE001
         log.warning("Playback abort during interrupt failed: %s", exc)
+
+
+def _set_playback_muted(muted: bool) -> None:
+    """Apply Output Mute to the real player (PR-024).
+
+    Core owns the intent and publishes `playback.muted`; the player belongs to the
+    legacy pipeline until PR-037, so the owner applies it here -- the same
+    injection shape as `_abort_playback` and the capture callbacks.
+
+    The player raises if the device refuses, and the caller turns that into a
+    rejected command rather than publishing a mute that did not happen.
+    """
+    if _core is None:
+        return
+    player = getattr(_core, "player", None)
+    if player is None:
+        return
+    player.set_muted(muted)
 
 
 def core() -> PL.VoiceCore:

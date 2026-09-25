@@ -47,6 +47,7 @@ class RuntimeController:
         on_mode_changed: Callable[[Mode], None] | None = None,
         turn_executor: Any | None = None,
         capture_now: Callable[[], Any] | None = None,
+        on_playback_mute: Callable[[bool], None] | None = None,
     ) -> None:
         self.runtime_instance_id = runtime_instance_id or uuid4()
         self._event_broadcaster = event_broadcaster
@@ -67,6 +68,10 @@ class RuntimeController:
         # drag concrete clients into `core/`, so the executor is injected by the
         # owner (server.py) rather than imported here.
         self.turn_executor = turn_executor
+        # Output Mute (PR-024).  Core owns the *intent* -- the published
+        # `playback.muted` is its answer -- but holds no player reference, so the
+        # owner supplies the action, exactly like `on_interrupt_action`.
+        self._on_playback_mute = on_playback_mute
         self._snapshot_version: int = 0
         self._runtime_control_revision: int = 0
         self._hub_binding_revision: int = 0
@@ -617,6 +622,36 @@ class RuntimeController:
                 command_id=cmd.command_id,
                 status="applied",
                 snapshot_version=self._snapshot_version,
+            )
+        elif c_type == "playback.set_muted":
+            # PR-024 / plan L989: Output Mute stops speaker playback only.  It is
+            # an output control, so no mode forbids it and it must not touch
+            # capture -- Privacy Pause is the control that stops recording.
+            try:
+                if self._on_playback_mute is not None:
+                    self._on_playback_mute(payload.muted)
+            except Exception as exc:  # noqa: BLE001
+                # L1338 in spirit: never publish a state the device did not reach.
+                log.warning("Playback mute failed: %s", exc)
+                return CommandResult(
+                    command_id=cmd.command_id,
+                    status="rejected",
+                    snapshot_version=self._snapshot_version,
+                    error=ErrorEnvelope(
+                        code=ErrorCode.PROVIDER_DISCONNECTED,
+                        message="the audio device refused the mute request",
+                        severity="error",
+                        component="core.playback",
+                        correlation_id=cmd.command_id,
+                    ),
+                )
+            self._playback.muted = payload.muted
+            self._snapshot_version += 1
+            return CommandResult(
+                command_id=cmd.command_id,
+                status="applied",
+                snapshot_version=self._snapshot_version,
+                data={"muted": self._playback.muted},
             )
         elif c_type == "memory.search":
             if self._journal is not None:

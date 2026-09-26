@@ -321,3 +321,18 @@ all groups passed
 ```
 
 T05/T06 实机与 T08 硬件门禁**仍关闭**。
+
+### 勘误（2026-09-26，§11 探针笔误）
+
+§11「缺口」复现块中的 `missing_old=['old0','old1','old2','old3','old4']` 是探针的**命名笔误**：
+该行由 `stored` 中不存在的 `old*` 计算得出，但同一份运行已列出 `stored` 含 `rold0..rold3`
+（记录 ID 前缀为 `r`）。真正不可达的只有 `old4`（即 `rold4`）。
+
+更正后的复现行应为：
+
+```ini
+missing_old=['old4']  -> rold4 永不可达，每轮 cursor 被清空
+```
+
+该笔误不影响代码结论：修后 round 1 导入 `old4`，`test_the_sweep_tail_is_reached_while_new_records_keep_arriving` 通过。
+原文保留不改写，此节为追加勘误。

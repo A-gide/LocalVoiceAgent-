@@ -112,3 +112,30 @@ def test_suppression_lets_a_richer_caller_own_the_turn():
         rt.turn_runner_suppressed = False
 
     assert reached == [], "the default runner executed a turn /api/ask already owns"
+
+
+
+def test_a_failing_runner_is_reported_not_reported_as_success():
+    """A runner exception must reject the command and close the turn."""
+    rt = RuntimeController()
+    rt.set_mode(Mode.LIVE)
+
+    def failing_runner(text, turn):
+        raise RuntimeError("model unavailable")
+
+    rt.turn_runner = failing_runner
+    res = rt.execute_command(
+        CommandEnvelope(
+            type="turn.send_text",
+            payload=TurnSendTextPayload(type="turn.send_text", text="hello"),
+        )
+    )
+
+    assert res.status == "rejected", (
+        "a failed turn was reported as success: "
+        f"status={res.status!r}"
+    )
+    assert res.error is not None and res.error.severity == "error"
+    assert rt.turn_controller.current_turn is None, (
+        "the failed turn was left open; it can never complete"
+    )

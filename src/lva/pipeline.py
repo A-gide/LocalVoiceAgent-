@@ -215,6 +215,10 @@ class VoiceCore:
 
         self.mic: A.Microphone | None = None
         self.player: A.Player | A.NullPlayer | None = None
+        # Whether the audio devices have been opened.  Startup deliberately does
+        # NOT open them (T02/I19): the microphone is created only when a mode that
+        # needs audio is entered, so the app never captures before consent.
+        self._devices_open = False
         self.use_player = use_player
         # Muted runs load a silent player, so a test or a measurement can drive
         # the whole state machine without any chance of sound reaching the room.
@@ -270,28 +274,43 @@ class VoiceCore:
             self._asr[name] = ASR.load(name)
         return self._asr[name]
 
+    def ensure_devices(self) -> None:
+        """Open the speaker + microphone, once (T02).
+
+        Startup runs with ``open_devices=False`` and no device is created, so the
+        microphone exists only after a capture mode is explicitly entered.  The
+        creation and the start are here rather than in ``start`` because
+        ``on_start_mic`` (the mode-transition callback) is the point at which the
+        device becomes legitimate -- and by then the player must exist first, so
+        the echo canceller can be built from its render signal.
+        """
+        if self._devices_open:
+            return
+        if self.use_player:
+            self.player = A.make_player(muted=self.muted, device=self.device_out)
+            self.player.start()
+        # The echo canceller needs the render signal, so it can only be built
+        # once the player exists.  With it active the microphone no longer
+        # hears the assistant and interruption stops being a loudness guess.
+        if C.AEC and not self.muted and isinstance(self.player, A.Player):
+            try:
+                self.aec = A.Aec(delay_ms=C.ECHO_DELAY_MS)
+            except Exception:  # noqa: BLE001
+                log.exception("echo cancellation unavailable; falling back to the gate")
+                self.aec = None
+        self.mic = A.Microphone(self.feed, device=self.device_in)
+        if self.aec is not None:
+            self.mic.enable_aec(self.aec, self.player.reference)
+        self.mic.start()
+        self._devices_open = True
+
     def start(self, open_devices: bool = True) -> None:
         self._running = True
         self.load_asr()
         if self.archive_name != self.asr_name:
             self.load_asr(self.archive_name)
         if open_devices:
-            if self.use_player:
-                self.player = A.make_player(muted=self.muted, device=self.device_out)
-                self.player.start()
-            # The echo canceller needs the render signal, so it can only be built
-            # once the player exists.  With it active the microphone no longer
-            # hears the assistant and interruption stops being a loudness guess.
-            if C.AEC and not self.muted and isinstance(self.player, A.Player):
-                try:
-                    self.aec = A.Aec(delay_ms=C.ECHO_DELAY_MS)
-                except Exception:  # noqa: BLE001
-                    log.exception("echo cancellation unavailable; falling back to the gate")
-                    self.aec = None
-            self.mic = A.Microphone(self.feed, device=self.device_in)
-            if self.aec is not None:
-                self.mic.enable_aec(self.aec, self.player.reference)
-            self.mic.start()
+            self.ensure_devices()
         self._frame_thread = threading.Thread(target=self._frame_loop,
                                               name="lva-frames", daemon=True)
         self._turn_thread = threading.Thread(target=self._turn_loop,

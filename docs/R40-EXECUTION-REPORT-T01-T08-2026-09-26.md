@@ -211,3 +211,62 @@ VRAM、12h soak）**未测量**，不以合成数字冒充。
 - 冻结计划原件仍自称 **Freeze Candidate**，故所有「计划行号」引用只是**候选依据**；
 - 一次 `apply_patch` 因自动审批超时未落地（未产生半写状态），随后重试成功；
 - 本报告不含任何密钥、DPAPI 密文或完整账户 ID。
+
+---
+
+## 10. 复核后更正（2026-09-26，独立复核方指出，已修正）
+
+独立复核在当前提交上指出三处缺陷，**均经我复现确认并已修复**。本节保留原始记录不改写。
+
+### 10.1 P0 — 启动仍会开麦（T02 修复不完整）
+
+**原因**：`server.py` 调用 `c.start()`，而 `VoiceCore.start` 默认 `open_devices=True`，
+内部执行 `mic.start()`。原 T02 RED 用空实现的 `FakeCore.start()`，**未覆盖真实入口**。
+
+**修复**：
+
+- `VoiceCore.start(open_devices: bool = True)` 抽出 `ensure_devices()`（创建并启动 player 与 mic）；
+- `lifespan` 改为 `c.start(open_devices=False)`；启动不创建 mic；
+- `on_start_mic` → `_start_core_mic_device`：未开设备时调 `ensure_devices()` 打开，已开则只 `mic.start()`。
+
+**新 RED**（`test_red_r40_t02_startup_standby.py`，改用真实 `VoiceCore`）：
+①真实入口启动后 mic 未打开且 `v.mic is None`；②进入采集模式必须真正打开 mic 且幂等；
+③`lifespan` 源码含 `open_devices=False`。
+
+### 10.2 P1 — T01「显式放弃」实为自动放弃 + 补扫无续传
+
+**原因**：
+
+1. `_quarantine_record` 第 3 次即自动 `abandoned`，水位可越过未导入记录；原 RED 把自动放弃写成预期；
+2. 7 天补扫达到 `MAX_PAGES` 后无续传、无未完成标记（复现：3 条旧记录、每次读 2 条、两次调用后第 3 条不可达）。
+
+**修复**：
+
+- 放弃**改为纯手动**：`_quarantine_record` 不再自动 abandon，只记录并在阈值处**一次性告警**要求人工决策；
+  出口仍是 `JournalRepository.abandon_quarantined_record()`；已放弃记录不再阻塞水位；
+- cursor JSON 增加 `sweep` 字段持久化补扫 offset；补扫从持久 offset **续传**；未排空时记录
+  `UNVERIFIED_SCREENPIPE_PAGINATION` 未完成标记，排空后清除。
+
+**复现确认（修后）**：3 条旧记录在 3 次续传调用后全部入库（`rold0/1/2`）。
+
+**新 RED**：`test_an_unusable_record_is_recorded_and_blocks_until_explicitly_abandoned`、
+`test_the_reopen_sweep_continues_past_a_low_page_cap`、`test_an_incomplete_sweep_is_persisted_for_resume`。
+
+### 10.3 P1 — T04 执行失败被报为成功
+
+**原因**：`_run_turn_runner` 吞掉 runner 异常，命令仍返回 `applied`，Turn 保持打开（复现：
+`command_status=applied`、`turn_open=True`）。
+
+**修复**：`_run_turn_runner` 返回 `ErrorEnvelope`；`turn.send_text` 在runner 失败时返回
+`rejected` 并取消该 Turn。**新 RED**：`test_a_failing_runner_is_reported_not_reported_as_success`。
+
+### 10.4 修复后的门禁（本轮实测）
+
+```ini
+[PASS] contract 5 / invariants 23 / unit 47 / fault 7 / integration 11
+[PASS] migration 2 / ux 11 / harness 43 / red-v121 428
+expected-red groups failing: []
+all groups passed
+```
+
+ruff 通过；T05/T06 实机与 T08 硬件门禁**仍关闭**（服务未运行）。

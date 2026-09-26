@@ -1,80 +1,137 @@
-"""R40 T02 — startup must not implicitly open capture; it must start in Standby."""
+"""R40 T02 - startup must not open the microphone; entering capture must."""
 from __future__ import annotations
 
 import asyncio
 import inspect
+from types import SimpleNamespace
 
 import pytest
 
 pytestmark = pytest.mark.red_v121
 
 
-def test_startup_enters_standby_and_does_not_open_the_mic(monkeypatch, tmp_path):
-    """I19: boot must reach Standby with the mic device untouched."""
-    from lva import config as C
-    import lva.server as server
-    from lva.contracts.enums import Mode
+def _stub_vad(monkeypatch, pipeline):
+    """Replace the Silero VAD so the test does not need the model file.
 
-    monkeypatch.setattr(C, "DATA", tmp_path)
-    monkeypatch.setattr(server, "_journal", None)
-    monkeypatch.setattr(server, "_runtime", None)
-    monkeypatch.setattr(server, "_core", None)
+    The pipeline constructor loads `silero_vad.onnx`; the gate harness isolates
+    the model directory, so the behaviour under test (device opening) must not
+    depend on that file being present.
+    """
 
-    mic_starts = {"count": 0}
+    class FakeVad:
+        def __init__(self, *args, **kwargs):
+            self.speech_detected = False
+
+        def accept(self, block):
+            return []
+
+        def reset(self):
+            pass
+
+    monkeypatch.setattr(pipeline, "Vad", FakeVad)
+
+
+def test_real_voicecore_start_does_not_open_the_microphone(monkeypatch, tmp_path):
+    """I19: the real `VoiceCore.start(open_devices=False)` must not start the mic."""
+    import lva.pipeline as pipeline
+
+    _stub_vad(monkeypatch, pipeline)
+
+    opened = {"mic": 0, "player": 0}
 
     class FakeMic:
         device_name = "fake-mic"
 
+        def __init__(self, cb, device=None):
+            pass
+
         def start(self):
-            mic_starts["count"] += 1
+            opened["mic"] += 1
 
         def stop(self):
             pass
 
-    class FakeCore:
-        asr_name = "fake-asr"
-        tts = None
-        mic = FakeMic()
-        player = None
+        def enable_aec(self, *a, **k):
+            pass
 
-        def __init__(self):
-            self.mode = None
+    monkeypatch.setattr(pipeline.A, "Microphone", FakeMic)
+    monkeypatch.setattr(pipeline.A, "make_player", lambda **k: SimpleNamespace(
+        device_name="fake-out", start=lambda: opened.__setitem__("player", opened["player"] + 1),
+        stop=lambda: None, play=lambda *a, **k: None, pending=lambda: 0,
+        mark_end=lambda: None, flush=lambda: None, set_muted=lambda m: None,
+    ))
+
+    v = pipeline.VoiceCore(use_player=True, muted=True, tts_engine="none")
+    monkeypatch.setattr(v, "load_asr", lambda *a, **k: SimpleNamespace(transcribe=lambda *a, **k: None))
+    monkeypatch.setattr(pipeline, "ASR", pipeline.ASR)
+    v.start(open_devices=False)
+    try:
+        assert opened["mic"] == 0, (
+            "startup opened the microphone (real VoiceCore entry): "
+            f"mic_starts={opened['mic']}"
+        )
+        assert v.mic is None, "startup created a microphone before any consent"
+    finally:
+        v._running = False
+        v._frame_q.put(None)
+        v._turn_q.put(None)
+        for t in (v._frame_thread, v._turn_thread):
+            if t:
+                t.join(timeout=2)
+
+
+def test_entering_a_capture_mode_opens_the_microphone(monkeypatch, tmp_path):
+    """The other direction: an explicit capture mode must actually open the mic."""
+    import lva.pipeline as pipeline
+
+    _stub_vad(monkeypatch, pipeline)
+
+    opened = {"mic": 0}
+
+    class FakeMic:
+        device_name = "fake-mic"
+
+        def __init__(self, cb, device=None):
+            self._cb = cb
+            self.started = False
 
         def start(self):
-            pass
+            if not self.started:
+                opened["mic"] += 1
+                self.started = True
 
         def stop(self):
+            self.started = False
+
+        def enable_aec(self, *a, **k):
             pass
 
-        def set_mode(self, mode):
-            self.mode = mode
+    monkeypatch.setattr(pipeline.A, "Microphone", FakeMic)
+    monkeypatch.setattr(pipeline.A, "make_player", lambda **k: SimpleNamespace(
+        device_name="fake-out", start=lambda: None, stop=lambda: None,
+        play=lambda *a, **k: None, pending=lambda: 0, mark_end=lambda: None,
+        flush=lambda: None, set_muted=lambda m: None,
+    ))
 
-    fake_core = FakeCore()
-    monkeypatch.setattr(server, "core", lambda: fake_core)
-    # The boot path builds the runtime; keep the real one so the mode is real.
-    runtime = server.get_runtime()
+    v = pipeline.VoiceCore(use_player=True, muted=True, tts_engine="none")
+    monkeypatch.setattr(v, "load_asr", lambda *a, **k: SimpleNamespace(transcribe=lambda *a, **k: None))
 
-    async def _run_lifespan():
-        async with server.lifespan(server.app):
-            return runtime.mode
-
-    mode_at_boot = asyncio.run(_run_lifespan())
-
-    assert mode_at_boot == Mode.STANDBY, (
-        f"startup did not enter Standby; it entered {mode_at_boot}"
-    )
-    assert mic_starts["count"] == 0, (
-        "startup implicitly opened the microphone "
-        f"({mic_starts['count']} start call(s)) before any user consent"
-    )
+    assert opened["mic"] == 0
+    v.ensure_devices()
+    assert opened["mic"] == 1, "entering capture did not open the microphone"
+    assert v.mic is not None
+    # Idempotent: a second transition must not create a second device.
+    v.ensure_devices()
+    assert opened["mic"] == 1
 
 
-def test_the_lifespan_source_does_not_hardcode_passive_or_recording():
-    """Guard the specific regression: boot must not set Passive/RECORDING."""
+def test_startup_lifespan_passes_open_devices_false():
+    """Guard the specific regression: boot must not call the default start()."""
     import lva.server as server
+    from lva.contracts.enums import Mode
 
-    source = inspect.getsource(server.lifespan)
-    assert "Mode.PASSIVE" not in source, "lifespan still hardcodes Passive at startup"
-    assert "PL.Mode.RECORDING" not in source, (
-        "lifespan still puts the legacy pipeline into RECORDING at startup"
+    src = inspect.getsource(server.lifespan)
+    assert "open_devices=False" in src, (
+        "lifespan must start the pipeline without opening the audio devices"
     )
+    assert "Mode.PASSIVE" not in src and "PL.Mode.RECORDING" not in src

@@ -279,10 +279,20 @@ def _stop_core_mic_device() -> None:
 
 
 def _start_core_mic_device() -> None:
-    mic = getattr(_core, "mic", None) if _core is not None else None
-    if mic is None:
+    """Open the Core mic when a capture mode is entered (T02).
+
+    Startup leaves the devices unopened, so the microphone is created here on the
+    first explicit capture transition rather than at boot.  A later transition
+    (Standby -> Live) finds the device already created and only restarts it.
+    """
+    if _core is None:
         return
-    mic.start()
+    if not getattr(_core, "_devices_open", False):
+        _core.ensure_devices()
+        return
+    mic = getattr(_core, "mic", None)
+    if mic is not None:
+        mic.start()
 
 
 def _sync_legacy_mode(new_mode: Mode) -> None:
@@ -363,7 +373,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     global _loop
     _loop = asyncio.get_running_loop()
     c = core()
-    c.start()
+    # T02/I19: start the pipeline but do NOT open the audio devices.  The old boot
+    # called the default `start(open_devices=True)`, which immediately created and
+    # started the microphone -- capture before any consent.  Devices are opened
+    # only when a capture mode is entered (`on_start_mic` -> `ensure_devices`).
+    c.start(open_devices=False)
     rt = get_runtime()
     # T02 / I19: startup must not implicitly open the microphone.  The previous
     # boot went straight to Passive *and* set the legacy pipeline to RECORDING,

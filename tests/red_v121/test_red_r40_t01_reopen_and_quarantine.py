@@ -122,8 +122,12 @@ def test_the_reopen_sweep_request_is_bounded_below_the_checkpoint():
         assert int(lo) >= watermark - worker.REOPEN_WINDOW_US
 
 
-def test_an_unusable_record_is_recorded_and_blocks_until_abandoned():
-    """T01-R2: a bad record is on record, blocks the checkpoint, then can exit."""
+def test_an_unusable_record_is_recorded_and_blocks_until_explicitly_abandoned():
+    """T01-R2: a bad record is on record and blocks until an operator abandons it.
+
+    Abandonment must be a manual decision.  An automatic threshold would move the
+    checkpoint past a record that was never imported, which silently drops data.
+    """
     from lva.journal.repository import JournalRepository
     from lva.screenpipe_importer.worker import ScreenpipeImportWorker
 
@@ -132,24 +136,83 @@ def test_an_unusable_record_is_recorded_and_blocks_until_abandoned():
     repo = JournalRepository(":memory:")
     worker = ScreenpipeImportWorker(client, repo)
 
-    for _ in range(worker.QUARANTINE_ABANDON_AFTER + 1):
+    for _ in range(worker.QUARANTINE_ABANDON_AFTER + 2):
         asyncio.run(worker.import_page(limit=10))
 
+    # No automatic abandonment, and the checkpoint stays put for retry.
     summary = repo.quarantine_summary()
-    assert summary["abandoned"] >= 1, (
-        "a permanently unusable record was never given the explicit abandon exit: "
-        f"summary={summary}"
+    assert summary["open"] >= 1 and summary["abandoned"] == 0, (
+        "a record was abandoned automatically; abandonment must be an explicit "
+        f"operator decision. summary={summary}"
     )
-    # The gap stays visible rather than being silently dropped.
+    assert worker.get_watermark() == 0
+
+    # The explicit exit: an operator abandons it, then the range may close.
+    assert repo.abandon_quarantined_record("bad-1") is True
     row = repo.conn.execute(
         "SELECT reason, abandoned, abandoned_at_utc_us FROM import_quarantine "
         "WHERE record_key = 'bad-1'"
     ).fetchone()
     assert row is not None and row["abandoned"] == 1 and row["abandoned_at_utc_us"]
 
-    # Once abandoned, the checkpoint is allowed to close over the range.
     asyncio.run(worker.import_page(limit=10))
     assert worker.get_watermark() > 0, "the checkpoint never closed after the abandon exit"
+
+
+def test_the_reopen_sweep_continues_past_a_low_page_cap():
+    """A window that does not fit the page budget must resume, not starve."""
+    from lva.journal.repository import JournalRepository
+    from lva.screenpipe_importer.worker import ScreenpipeImportWorker
+
+    client = WindowedClient([_rec("newer", BASE)])
+    repo = JournalRepository(":memory:")
+    worker = ScreenpipeImportWorker(client, repo)
+    asyncio.run(worker.import_page(limit=10))
+    watermark = worker.get_watermark()
+    assert watermark > 0
+
+    # Three older records, each page returns a single item, one page per call.
+    for i in range(3):
+        client.items.append(_rec(f"old-{i}", BASE - timedelta(hours=i + 1)))
+    worker.MAX_PAGES = 1
+
+    for _ in range(6):
+        asyncio.run(worker.import_page(limit=1))
+        if all(f"old-{i}" in _stored_ids(repo) for i in range(3)):
+            break
+
+    missing = [f"old-{i}" for i in range(3) if f"old-{i}" not in _stored_ids(repo)]
+    assert not missing, (
+        "the reopen sweep did not continue past the page cap; "
+        f"unreachable={missing!r}, stored={sorted(_stored_ids(repo))}"
+    )
+
+
+def test_an_incomplete_sweep_is_persisted_for_resume():
+    """A sweep that hits the cap must persist its offset, not silently claim done."""
+    from lva.journal.repository import JournalRepository
+    from lva.screenpipe_importer.worker import ScreenpipeImportWorker
+
+    client = WindowedClient([_rec("newer", BASE)])
+    repo = JournalRepository(":memory:")
+    worker = ScreenpipeImportWorker(client, repo)
+    asyncio.run(worker.import_page(limit=10))
+
+    # Four older records and a page size of 2: the incremental drain finishes
+    # (the window returns a single stored record), but the sweep needs two pages
+    # while only one is allowed.
+    for i in range(4):
+        client.items.append(_rec(f"old-{i}", BASE - timedelta(hours=i + 1)))
+    worker.MAX_PAGES = 1
+    asyncio.run(worker.import_page(limit=2))
+
+    cursor = repo.conn.execute(
+        "SELECT cursor FROM import_checkpoints WHERE importer='screenpipe_rest'"
+    ).fetchone()["cursor"]
+    assert cursor and '"sweep"' in cursor, (
+        "an incomplete reopen sweep left no continuation state: "
+        f"cursor={cursor!r}"
+    )
 
 
 def test_an_open_quarantine_record_still_blocks_the_checkpoint():

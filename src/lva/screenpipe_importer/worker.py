@@ -71,7 +71,10 @@ class ScreenpipeImportWorker:
                 (watermark_utc_us, now_us),
             )
 
-    def _load_resume_state(self, watermark: int) -> tuple[int, int]:
+    # The cursor column holds two independent continuations: the incremental
+    # page offset (top-level) and the reopen-sweep offset (under "sweep").  They
+    # are kept in one JSON document so neither write clobbers the other.
+    def _read_cursor(self) -> dict[str, Any]:
         row = self.repo.conn.execute(
             """
             SELECT cursor FROM import_checkpoints
@@ -80,7 +83,7 @@ class ScreenpipeImportWorker:
         ).fetchone()
         cursor = row["cursor"] if row else None
         if cursor is None:
-            return 0, 0
+            return {}
         if not isinstance(cursor, str) or not cursor.startswith(self.CURSOR_PREFIX):
             raise ValueError(
                 "IMPORT_CHECKPOINT_CURSOR_UNSUPPORTED: refusing to discard an "
@@ -93,33 +96,17 @@ class ScreenpipeImportWorker:
                 "IMPORT_CHECKPOINT_CURSOR_INVALID: refusing to restart a capped "
                 "Screenpipe drain from the head"
             ) from exc
-        if (
-            not isinstance(state, dict)
-            or state.get("version") != 1
-            or type(state.get("offset")) is not int
-            or state["offset"] < 0
-            or type(state.get("skipped")) is not int
-            or state["skipped"] < 0
-            or type(state.get("watermark")) is not int
-            or state["watermark"] != watermark
-        ):
+        if not isinstance(state, dict):
             raise ValueError(
-                "IMPORT_CHECKPOINT_CURSOR_INVALID: continuation state does not "
-                "match the current watermark; refusing to skip source records"
+                "IMPORT_CHECKPOINT_CURSOR_INVALID: continuation state must be a mapping"
             )
-        return state["offset"], state["skipped"]
+        return state
 
-    def _save_resume_state(self, offset: int, skipped: int, watermark: int) -> None:
+    def _write_cursor(self, state: dict[str, Any], watermark: int) -> None:
         now_us = int(datetime.now(timezone.utc).timestamp() * 1_000_000)
-        cursor = self.CURSOR_PREFIX + json.dumps(
-            {
-                "version": 1,
-                "offset": offset,
-                "skipped": skipped,
-                "watermark": watermark,
-            },
-            separators=(",", ":"),
-        )
+        cursor = None
+        if state:
+            cursor = self.CURSOR_PREFIX + json.dumps(state, separators=(",", ":"))
         with self.repo.conn:
             self.repo.conn.execute(
                 """
@@ -133,16 +120,60 @@ class ScreenpipeImportWorker:
                 (cursor, watermark, now_us),
             )
 
-    def _clear_resume_state(self) -> None:
-        now_us = int(datetime.now(timezone.utc).timestamp() * 1_000_000)
-        with self.repo.conn:
-            self.repo.conn.execute(
-                """
-                UPDATE import_checkpoints SET cursor = NULL, updated_at_utc_us = ?
-                WHERE importer = 'screenpipe_rest' AND external_source = 'audio'
-                """,
-                (now_us,),
+    def _load_resume_state(self, watermark: int) -> tuple[int, int]:
+        state = self._read_cursor()
+        if state.get("version") != 1 or "offset" not in state:
+            return 0, 0
+        if (
+            type(state.get("offset")) is not int
+            or state["offset"] < 0
+            or type(state.get("skipped")) is not int
+            or state["skipped"] < 0
+            or type(state.get("watermark")) is not int
+            or state["watermark"] != watermark
+        ):
+            raise ValueError(
+                "IMPORT_CHECKPOINT_CURSOR_INVALID: continuation state does not "
+                "match the current watermark; refusing to skip source records"
             )
+        return state["offset"], state["skipped"]
+
+    def _save_resume_state(self, offset: int, skipped: int, watermark: int) -> None:
+        state = self._read_cursor()
+        state.update(
+            {"version": 1, "offset": offset, "skipped": skipped, "watermark": watermark}
+        )
+        self._write_cursor(state, watermark)
+
+    def _clear_resume_state(self) -> None:
+        state = self._read_cursor()
+        for key in ("version", "offset", "skipped", "watermark"):
+            state.pop(key, None)
+        self._write_cursor(state, self.get_watermark())
+
+    def _load_sweep_state(self, watermark: int) -> tuple[int, int] | None:
+        """The persisted reopen-sweep continuation, or ``None`` when none is valid."""
+        state = self._read_cursor()
+        sweep = state.get("sweep")
+        if (
+            not isinstance(sweep, dict)
+            or type(sweep.get("start")) is not int
+            or type(sweep.get("offset")) is not int
+            or sweep["offset"] < 0
+            or sweep.get("watermark") != watermark
+        ):
+            return None
+        return sweep["start"], sweep["offset"]
+
+    def _save_sweep_state(self, start: int, offset: int, watermark: int) -> None:
+        state = self._read_cursor()
+        state["sweep"] = {"start": start, "offset": offset, "watermark": watermark}
+        self._write_cursor(state, watermark)
+
+    def _clear_sweep_state(self) -> None:
+        state = self._read_cursor()
+        state.pop("sweep", None)
+        self._write_cursor(state, self.get_watermark())
 
     async def import_page(self, limit: int = 50) -> int:
         """Drain every available page, then advance the checkpoint once.
@@ -433,24 +464,30 @@ class ScreenpipeImportWorker:
     def _quarantine_record(self, item: dict[str, Any], reason: str) -> bool:
         """Record an unusable source record; return True while it still blocks.
 
-        T01-R2: after ``QUARANTINE_ABANDON_AFTER`` attempts the record is left on
-        record as abandoned, so the range can close instead of rescanning history
-        forever.  The record is never imported and never deleted -- the gap stays
-        visible with its reason and an abandon timestamp.
+        T01-R2 / the manual-exit rule: this only *records* the problem and keeps
+        the checkpoint blocked.  It never abandons a record on its own -- moving
+        the import range past a record that was never imported is a decision for
+        an operator, so an automatic threshold would silently drop data.  The
+        explicit exit is ``JournalRepository.abandon_quarantined_record()``.
         """
         try:
             key = self._record_key(item)
-            attempts = self.repo.record_quarantined_record(key, reason)
-            if attempts >= self.QUARANTINE_ABANDON_AFTER:
-                if self.repo.abandon_quarantined_record(key):
-                    log.warning(
-                        "T01 quarantine: record %s abandoned after %d attempts "
-                        "(%s); the checkpoint may close past it",
-                        key,
-                        attempts,
-                        reason,
-                    )
+            # An operator may have abandoned the record; then it no longer blocks
+            # the range and must not keep re-counting attempts.
+            if self.repo.is_quarantined_abandoned(key):
                 return False
+            attempts = self.repo.record_quarantined_record(key, reason)
+            if attempts == self.QUARANTINE_ABANDON_AFTER:
+                # Warn once at the threshold that a decision is now needed, but
+                # take no action: the record stays open and keeps blocking.
+                log.warning(
+                    "T01 quarantine: record %s has failed %d time(s) (%s). The "
+                    "checkpoint remains blocked; call abandon_quarantined_record() "
+                    "to close the range past it explicitly.",
+                    key,
+                    attempts,
+                    reason,
+                )
             return True
         except Exception as exc:  # noqa: BLE001 - never let bookkeeping drop a record
             log.warning("T01 quarantine bookkeeping failed for a record: %s", exc)
@@ -470,7 +507,13 @@ class ScreenpipeImportWorker:
         start_iso = datetime.fromtimestamp(window_start / 1_000_000, tz=timezone.utc).isoformat()
         end_iso = datetime.fromtimestamp(watermark / 1_000_000, tz=timezone.utc).isoformat()
         found = 0
-        offset = 0
+        # Resume from a persisted sweep offset so a window that does not fit in
+        # one call's page budget continues instead of restarting.  Without this
+        # the sweep always reread the head and could never reach a record that sat
+        # beyond the page cap.
+        resumed = self._load_sweep_state(watermark)
+        offset = resumed[1] if resumed and resumed[0] == window_start else 0
+        swept_complete = False
         for _page in range(self.MAX_PAGES):
             try:
                 items = await self.client.search(
@@ -529,8 +572,21 @@ class ScreenpipeImportWorker:
                     )
                     found += 1
             if len(items) < limit:
+                swept_complete = True
                 break
             offset += limit
+        if not swept_complete:
+            self._save_sweep_state(window_start, offset, watermark)
+            log.warning(
+                "UNVERIFIED_SCREENPIPE_PAGINATION: reopen sweep stopped at page cap "
+                "(%d); window start %d with offset %d persisted and will resume. "
+                "The window is not confirmed swept.",
+                self.MAX_PAGES,
+                window_start,
+                offset,
+            )
+        else:
+            self._clear_sweep_state()
         if found:
             log.info("T01 reopen sweep recovered %d record(s) below the checkpoint", found)
         return found

@@ -161,19 +161,34 @@ class RuntimeController:
         """
         return provider_epoch == self.interrupt_controller.provider_epoch
 
-    def _run_turn_runner(self, text: str, turn: TurnId) -> None:
-        """Run the injected turn runner (T04), unless a richer caller owns this turn.
+    def _run_turn_runner(self, text: str, turn: TurnId) -> ErrorEnvelope | None:
+        """Run the injected turn runner (T04); return an error when it failed.
 
         ``/api/ask`` opens the turn through this same dispatcher and then runs the
         executor itself (with domain/``speak``), so it suppresses the default
         runner while it does, to avoid executing the turn twice.
+
+        A runner failure must be *reported*: swallowing it returned ``applied``
+        for a turn that never executed, which is the same pretend-success the rest
+        of this file removed.  The failed turn is also closed, so the caller is
+        not left with a turn that opened and can never complete.
         """
         if self.turn_runner_suppressed or self.turn_runner is None:
-            return
+            return None
         try:
             self.turn_runner(text, turn)
-        except Exception as exc:  # noqa: BLE001 - a failed turn must not break the command
+            return None
+        except Exception as exc:  # noqa: BLE001 - surfaced to the caller as a failure
             log.exception("Turn runner failed for turn %s: %s", turn, exc)
+            if self.turn_controller.current_turn == turn:
+                self.turn_controller.cancel_turn(turn, reason="turn_runner_failed")
+            return ErrorEnvelope(
+                code=ErrorCode.PROVIDER_DISCONNECTED,
+                message=f"the turn runner failed: {exc}",
+                severity="error",
+                component="core.turn",
+                correlation_id=self.runtime_instance_id,
+            )
 
     def get_state(self) -> RuntimeState:
         return RuntimeState(
@@ -801,7 +816,14 @@ class RuntimeController:
             # through the dispatcher (the desktop UI does) saw a turn open and
             # never close.  The runner is injected; when it is absent the turn is
             # still opened so the mode-guard contract is unchanged.
-            self._run_turn_runner(payload.text, turn)
+            runner_error = self._run_turn_runner(payload.text, turn)
+            if runner_error is not None:
+                return CommandResult(
+                    command_id=cmd.command_id,
+                    status="rejected",
+                    snapshot_version=self._snapshot_version,
+                    error=runner_error,
+                )
             return CommandResult(
                 command_id=cmd.command_id,
                 status="applied",

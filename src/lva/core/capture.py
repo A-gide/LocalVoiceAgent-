@@ -16,7 +16,7 @@ log = logging.getLogger("lva.core.capture")
 CAPTURE_ACK_TIMEOUT = timedelta(seconds=5)
 
 OperationKind = Literal["stop", "resume"]
-OperationStatus = Literal["pending", "acknowledged", "timed_out"]
+OperationStatus = Literal["pending", "acknowledged", "timed_out", "superseded"]
 
 
 @dataclass
@@ -92,6 +92,15 @@ class CaptureCoordinator:
 
     # ------------------------------------------------------------ operations
     def _new_operation(self, kind: OperationKind) -> CaptureOperation:
+        # A newer request of the same kind replaces the intent of an older one
+        # that was never answered: the two ask for the same state, so the latest
+        # is the one that matters and the older must not keep the scope
+        # unverified forever (FIX-006 uncovered this -- entering Live and then
+        # Privacy Pause queued two stop operations, so a single executor ack
+        # could never settle the scope).
+        for prior in self.operations:
+            if prior.kind == kind and prior.status == "pending":
+                prior.status = "superseded"
         self._counter += 1
         requested = self._now()
         op = CaptureOperation(

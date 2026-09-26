@@ -77,6 +77,13 @@ CAS_FREE: tuple[str, ...] = (
     # the alternative was a local UI ref that changed the icon and left the speakers
     # playing, which plan L989/L1377 forbid.
     "playback.set_muted",
+    # FIX-006: the capture executor's answer to a managed-capture request.  It is
+    # an inbound report of what the executor *observed*, not a control action, so
+    # it carries no CAS precondition -- it is the thing that settles the operation
+    # and lets the privacy scope become verified.  Registered here under the owner
+    # authorization for the contract change (hard constraint 5); the audit's F-006
+    # is that the request never reached the executor and no ack existed at all.
+    "capture.ack",
 )
 
 # Hub control commands are gated by the bind attestation (plan L665), not by the
@@ -105,6 +112,7 @@ PAYLOAD_CLASS: dict[str, str] = {
     "hub.bind_model": "HubBindModelPayload",
     "hub.sleep_bound_model": "HubSleepBoundModelPayload",
     "hub.attest_bind": "HubAttestBindPayload",
+    "capture.ack": "CaptureAckPayload",
     "playback.set_muted": "PlaybackSetMutedPayload",
     "settings.update_public": "SettingsUpdatePublicPayload",
     "settings.set_secret": "SettingsSetSecretPayload",
@@ -138,6 +146,10 @@ MINIMAL_PAYLOAD: dict[str, dict[str, Any]] = {
     "hub.refresh": {},
     "hub.bind_model": {"model_id": "m1"},
     "hub.sleep_bound_model": {},
+    # FIX-006: an executor ack targets a specific operation, so its minimal
+    # payload names one.  An unknown id is a legitimate refusal, which this
+    # test's allowlist accepts -- it only asserts the rejection is not a CAS one.
+    "capture.ack": {"operation_id": "op-1"},
     "playback.set_muted": {"muted": True},
     "settings.update_public": {},
     "settings.set_secret": {"secret_type": "cloud_api_key", "secret_value": "x"},

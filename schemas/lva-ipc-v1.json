@@ -169,6 +169,50 @@
       "title": "AudioVadStartedPayload",
       "type": "object"
     },
+    "CaptureAckPayload": {
+      "description": "The capture executor's answer to one ``capture.operation_requested`` (FIX-006).\n\nDirection: this is an **inbound** command.  The Desktop executor owns the\nrecorder, so it reports what actually happened; Core settles the matching\noperation and re-derives the privacy scope.  ``managed_stopped`` is the\nobserved state (not the requested one), so an executor that failed to stop\nreports ``False`` rather than letting Core claim a verified pause.",
+      "properties": {
+        "type": {
+          "const": "capture.ack",
+          "title": "Type",
+          "type": "string"
+        },
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "managed_stopped": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Managed Stopped"
+        },
+        "external_detected": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "External Detected"
+        }
+      },
+      "required": [
+        "type",
+        "operation_id"
+      ],
+      "title": "CaptureAckPayload",
+      "type": "object"
+    },
     "CaptureAggregate": {
       "properties": {
         "core_mic_stopped": {
@@ -195,6 +239,35 @@
         }
       },
       "title": "CaptureAggregate",
+      "type": "object"
+    },
+    "CaptureOperationRequestedPayload": {
+      "description": "Core asks the capture executor to run one managed-capture operation (FIX-006).\n\nDirection: Core -> Desktop executor.  Before this the Core recorded capture\noperations in its own list and nothing ever carried them to the process that\nowns the recorder, so Privacy Pause could never be acknowledged.  The\noperation is correlated by ``operation_id``; the executor answers with\n``capture.ack``.",
+      "properties": {
+        "type": {
+          "const": "capture.operation_requested",
+          "title": "Type",
+          "type": "string"
+        },
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "stop",
+            "resume"
+          ],
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "operation_id",
+        "kind"
+      ],
+      "title": "CaptureOperationRequestedPayload",
       "type": "object"
     },
     "CaptureState": {
@@ -301,6 +374,7 @@
         "payload": {
           "discriminator": {
             "mapping": {
+              "capture.ack": "#/$defs/CaptureAckPayload",
               "diagnostics.export_redacted": "#/$defs/DiagnosticsExportRedactedPayload",
               "hub.attest_bind": "#/$defs/HubAttestBindPayload",
               "hub.bind_model": "#/$defs/HubBindModelPayload",
@@ -349,6 +423,9 @@
             },
             {
               "$ref": "#/$defs/HubAttestBindPayload"
+            },
+            {
+              "$ref": "#/$defs/CaptureAckPayload"
             },
             {
               "$ref": "#/$defs/PlaybackSetMutedPayload"
@@ -631,6 +708,7 @@
               "audio.utterance_ready": "#/$defs/AudioUtteranceReadyPayload",
               "audio.vad_ended": "#/$defs/AudioVadEndedPayload",
               "audio.vad_started": "#/$defs/AudioVadStartedPayload",
+              "capture.operation_requested": "#/$defs/CaptureOperationRequestedPayload",
               "error.raised": "#/$defs/ErrorRaisedPayload",
               "hub.binding_changed": "#/$defs/HubBindingChangedPayload",
               "hub.operation_progress": "#/$defs/HubOperationProgressPayload",
@@ -732,6 +810,9 @@
             },
             {
               "$ref": "#/$defs/ErrorRaisedPayload"
+            },
+            {
+              "$ref": "#/$defs/CaptureOperationRequestedPayload"
             }
           ],
           "title": "Payload"

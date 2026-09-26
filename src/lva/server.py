@@ -166,7 +166,14 @@ def get_turn_executor() -> TurnExecutor:
             journal=get_journal(),
             correct_text=lambda text, domain: c.vocab.correct(text, domain=domain),
             build_messages=lambda corrected, block: c._prompt_messages(corrected, block),
-            stream_reply=lambda messages, mode: LLM.stream(messages, mode=mode),
+            # F-005: inference must follow the *committed* Hub binding, not the
+            # configured default.  A switch that commits a binding but leaves the
+            # request on the configured model answers from the wrong model, which
+            # is exactly the reproduced defect.  `bound_inference_model()` returns
+            # None when nothing is bound, so a non-Hub turn keeps the default.
+            stream_reply=lambda messages, mode: LLM.stream(
+                messages, mode=mode, model=get_runtime().bound_inference_model()
+            ),
             synthesize=_synthesize if c.tts is not None else None,
             to_wav_hex=lambda syn: A.to_wav_bytes(syn.samples, syn.sample_rate).hex(),
             strip_for_speech=TX.strip_for_speech,
@@ -260,6 +267,7 @@ def get_runtime() -> RuntimeController:
         def _bind_effect_hooks(_core: PL.VoiceCore) -> None:
             _core.core_effect_epoch = lambda: _runtime.interrupt_controller.provider_epoch
             _core.core_effect_gate = lambda epoch: _runtime.effect_gate_allows(epoch)
+            _core.bound_inference_model = lambda: _runtime.bound_inference_model()
 
         _runtime.effect_hook_binder = _bind_effect_hooks
         # The pipeline may already have been constructed (its `core()` is called

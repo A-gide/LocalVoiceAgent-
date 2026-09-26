@@ -51,7 +51,11 @@ RS_PATH = (
 # Re-pinned 2026-09-25 for PR-024: the contract gained `playback.set_muted` so
 # Output Mute reaches the Core instead of changing a local UI ref (approved
 # owner authorization, hard-constraint-5).
-EXPECTED_SCHEMA_SHA256 = "cdfc93e03a0db36c3781e2fbc88e0e7f5fe56e382f6291da1ad36f590e664a27"
+# Re-pinned 2026-09-26 for FIX-006: the contract gained the inbound `capture.ack`
+# command and the outbound `capture.operation_requested` event, so a managed
+# capture operation actually reaches the executor that owns the recorder and its
+# observed result comes back (approved owner authorization, hard-constraint-5).
+EXPECTED_SCHEMA_SHA256 = "aad1911e25f6a0e7fc18c1f2130cf4dd31e521c7808d2ec3b74ace93b432c29f"
 
 _NPM_ROOT = REPO_ROOT / "apps" / "desktop-ui"
 _TYPIFY_DRIVER = (

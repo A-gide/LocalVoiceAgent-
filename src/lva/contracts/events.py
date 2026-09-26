@@ -184,6 +184,21 @@ class ErrorRaisedPayload(BaseEventPayload):
     error: ErrorEnvelope
 
 
+class CaptureOperationRequestedPayload(BaseEventPayload):
+    """Core asks the capture executor to run one managed-capture operation (FIX-006).
+
+    Direction: Core -> Desktop executor.  Before this the Core recorded capture
+    operations in its own list and nothing ever carried them to the process that
+    owns the recorder, so Privacy Pause could never be acknowledged.  The
+    operation is correlated by ``operation_id``; the executor answers with
+    ``capture.ack``.
+    """
+
+    type: Literal["capture.operation_requested"]
+    operation_id: str
+    kind: Literal["stop", "resume"]
+
+
 EventPayload = Annotated[
     Union[
         RuntimeSnapshotPayload,
@@ -212,6 +227,7 @@ EventPayload = Annotated[
         MemoryRecallCompletedPayload,
         ServiceStateChangedPayload,
         ErrorRaisedPayload,
+        CaptureOperationRequestedPayload,
     ],
     Field(discriminator="type"),
 ]

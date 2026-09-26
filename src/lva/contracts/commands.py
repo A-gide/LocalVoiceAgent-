@@ -72,6 +72,22 @@ class HubAttestBindPayload(BaseCommandPayload):
     attestation: HubBindAttestation
 
 
+class CaptureAckPayload(BaseCommandPayload):
+    """The capture executor's answer to one ``capture.operation_requested`` (FIX-006).
+
+    Direction: this is an **inbound** command.  The Desktop executor owns the
+    recorder, so it reports what actually happened; Core settles the matching
+    operation and re-derives the privacy scope.  ``managed_stopped`` is the
+    observed state (not the requested one), so an executor that failed to stop
+    reports ``False`` rather than letting Core claim a verified pause.
+    """
+
+    type: Literal["capture.ack"]
+    operation_id: str
+    managed_stopped: bool | None = None
+    external_detected: bool | None = None
+
+
 class PlaybackSetMutedPayload(BaseCommandPayload):
     """Output Mute / 静音播放 (PR-024, plan L989 / L321 / L1377).
 
@@ -184,6 +200,7 @@ CommandPayload = Annotated[
         HubBindModelPayload,
         HubSleepBoundModelPayload,
         HubAttestBindPayload,
+        CaptureAckPayload,
         PlaybackSetMutedPayload,
         SettingsUpdatePublicPayload,
         SettingsSetSecretPayload,

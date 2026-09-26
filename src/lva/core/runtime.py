@@ -20,6 +20,7 @@ from ..contracts.errors import ErrorEnvelope
 from ..contracts.events import (
     EventEnvelope,
     EventPayload,
+    CaptureOperationRequestedPayload,
     PrivacyScopeChangedPayload,
     TurnCancelledPayload,
     TurnCompletedPayload,
@@ -161,6 +162,21 @@ class RuntimeController:
         """
         return provider_epoch == self.interrupt_controller.provider_epoch
 
+    def bound_inference_model(self) -> str | None:
+        """The model the *committed* Hub binding says this session should use
+        (F-005).
+
+        A switch that commits a binding but leaves inference on the configured
+        model silently answers from the wrong model, so the production inference
+        path reads the model from here rather than from config.  ``None`` means
+        nothing is bound -- an unbound local turn keeps the configured default,
+        because refusing then would break the non-Hub path the plan still allows.
+        """
+        binding = self._hub_binding
+        if binding is None:
+            return None
+        return binding.active_model_id or binding.desired_model_id or None
+
     def _run_turn_runner(self, text: str, turn: TurnId) -> ErrorEnvelope | None:
         """Run the injected turn runner (T04); return an error when it failed.
 
@@ -278,6 +294,12 @@ class RuntimeController:
         self._mode = new_mode
         self._runtime_control_revision += 1
         self._snapshot_version += 1
+        # FIX-006: carry any requested managed-capture operation to the executor.
+        # The coordinator records the operation; nothing else delivered it, so
+        # Privacy Pause never reached the process that owns the recorder and no
+        # ack could arrive.  The newest operation is published here, correlated
+        # by operation_id.
+        self._publish_capture_operation()
         self._publish_privacy_scope(previous_scope)
         if self._on_mode_changed:
             try:
@@ -333,6 +355,23 @@ class RuntimeController:
         self._snapshot_version += 1
         self._publish_privacy_scope(previous)
         return True
+
+    def _publish_capture_operation(self) -> None:
+        """Emit the newest pending capture operation for the executor (FIX-006)."""
+        op = self.capture_coordinator.last_operation()
+        if op is None or op.status != "pending":
+            return
+        try:
+            self.emit_event(
+                event_type="capture.operation_requested",
+                payload=CaptureOperationRequestedPayload(
+                    type="capture.operation_requested",
+                    operation_id=op.operation_id,
+                    kind=op.kind,
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001 - an emit failure must not break the mode change
+            log.warning("Failed to publish capture operation %s: %s", op.operation_id, exc)
 
     def expire_capture_operations(self) -> list[Any]:
         """Fail closed on unanswered capture requests (L1337/L1338)."""
@@ -839,6 +878,46 @@ class RuntimeController:
                 command_id=cmd.command_id,
                 status="applied",
                 snapshot_version=self._snapshot_version,
+            )
+        elif c_type == "capture.ack":
+            # FIX-006: the executor reports the *observed* state for one operation.
+            # An ack that matches no outstanding operation is refused (never
+            # let an unrelated ack move the privacy scope), and the scope is
+            # re-derived from what was actually reported.
+            accepted = self.acknowledge_capture_operation(
+                payload.operation_id,
+                managed_stopped=payload.managed_stopped,
+                external_detected=payload.external_detected,
+            )
+            if not accepted:
+                return CommandResult(
+                    command_id=cmd.command_id,
+                    status="rejected",
+                    snapshot_version=self._snapshot_version,
+                    error=ErrorEnvelope(
+                        # Not a CAS failure: there is no matching outstanding
+                        # operation, so the transition simply does not apply.
+                        code=ErrorCode.INVALID_TRANSITION,
+                        message=(
+                            f"capture.ack for unknown or already-settled operation "
+                            f"'{payload.operation_id}'"
+                        ),
+                        severity="warning",
+                        component="core.capture",
+                        correlation_id=cmd.command_id,
+                    ),
+                )
+            return CommandResult(
+                command_id=cmd.command_id,
+                status="applied",
+                snapshot_version=self._snapshot_version,
+                data={
+                    "type": c_type,
+                    "operation_id": payload.operation_id,
+                    "privacy_scope": self.capture_coordinator.compute_privacy_scope(
+                        self._mode
+                    ).value,
+                },
             )
         elif c_type == "playback.set_muted":
             # PR-024 / plan L989: Output Mute stops speaker playback only.  It is

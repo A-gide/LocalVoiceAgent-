@@ -69,10 +69,8 @@ export type Reason = string;
 export type Type = "audio.playback_silenced";
 export type ProviderEpoch = number;
 export type ProviderId = string;
-export type Kind = "asr" | "llm" | "tts";
 export type ProviderState1 = "uninitialized" | "ready" | "busy" | "disconnected" | "error";
 export type Epoch = number;
-export type OperationId = string;
 export type ProgressPercent = number;
 export type TurnSequence = number | null;
 export type Query = string;
@@ -110,6 +108,7 @@ export type CorrelationId = string;
 export type RedactedDetails = {
   [k: string]: unknown;
 } | null;
+export type Kind = "stop" | "resume";
 export type SchemaVersion = "1.0";
 export type CommandId = string;
 export type IdempotencyKey = string | null;
@@ -129,6 +128,7 @@ export type Payload =
   | HubBindModelPayload
   | HubSleepBoundModelPayload
   | HubAttestBindPayload
+  | CaptureAckPayload
   | PlaybackSetMutedPayload
   | SettingsUpdatePublicPayload
   | SettingsSetSecretPayload
@@ -141,6 +141,9 @@ export type Payload =
 export type Text = string;
 export type ModelId = string;
 export type Force = boolean;
+export type OperationId = string;
+export type ManagedStopped = boolean | null;
+export type ExternalDetected = boolean | null;
 export type Muted = boolean;
 export type Autostart = boolean | null;
 export type PetDormancyMode = boolean | null;
@@ -294,7 +297,8 @@ export interface EventEnvelope {
     | MemoryRevisionAddedPayload
     | MemoryRecallCompletedPayload
     | ServiceStateChangedPayload
-    | ErrorRaisedPayload;
+    | ErrorRaisedPayload
+    | CaptureOperationRequestedPayload;
 }
 export interface RuntimeSnapshotPayload {
   type: "runtime.snapshot";
@@ -395,7 +399,7 @@ export interface AudioPlaybackSilencedPayload {
 export interface ProviderStateChangedPayload {
   type: "provider.state_changed";
   provider_id: ProviderId;
-  kind: Kind;
+  kind: "asr" | "llm" | "tts";
   previous_state: ProviderState1;
   new_state: ProviderState1;
   epoch: Epoch;
@@ -406,7 +410,7 @@ export interface HubBindingChangedPayload {
 }
 export interface HubOperationProgressPayload {
   type: "hub.operation_progress";
-  operation_id: OperationId;
+  operation_id: string;
   model_id: string;
   progress_percent: ProgressPercent;
   message: string;
@@ -447,6 +451,20 @@ export interface ErrorEnvelope {
   component: Component;
   correlation_id: CorrelationId;
   redacted_details?: RedactedDetails;
+}
+/**
+ * Core asks the capture executor to run one managed-capture operation (FIX-006).
+ *
+ * Direction: Core -> Desktop executor.  Before this the Core recorded capture
+ * operations in its own list and nothing ever carried them to the process that
+ * owns the recorder, so Privacy Pause could never be acknowledged.  The
+ * operation is correlated by ``operation_id``; the executor answers with
+ * ``capture.ack``.
+ */
+export interface CaptureOperationRequestedPayload {
+  type: "capture.operation_requested";
+  operation_id: string;
+  kind: Kind;
 }
 export interface CommandEnvelope {
   schema_version?: SchemaVersion;
@@ -521,6 +539,21 @@ export interface HubSleepBoundModelPayload {
 export interface HubAttestBindPayload {
   type: "hub.attest_bind";
   attestation: HubBindAttestation;
+}
+/**
+ * The capture executor's answer to one ``capture.operation_requested`` (FIX-006).
+ *
+ * Direction: this is an **inbound** command.  The Desktop executor owns the
+ * recorder, so it reports what actually happened; Core settles the matching
+ * operation and re-derives the privacy scope.  ``managed_stopped`` is the
+ * observed state (not the requested one), so an executor that failed to stop
+ * reports ``False`` rather than letting Core claim a verified pause.
+ */
+export interface CaptureAckPayload {
+  type: "capture.ack";
+  operation_id: OperationId;
+  managed_stopped?: ManagedStopped;
+  external_detected?: ExternalDetected;
 }
 /**
  * Output Mute / 静音播放 (PR-024, plan L989 / L321 / L1377).

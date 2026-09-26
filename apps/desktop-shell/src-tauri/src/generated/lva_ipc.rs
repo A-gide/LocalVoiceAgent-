@@ -112,6 +112,23 @@ pub struct AudioVadStartedPayload {
     #[serde(rename = "type")]
     pub type_: ::std::string::String,
 }
+/**The capture executor's answer to one ``capture.operation_requested`` (FIX-006).
+
+Direction: this is an **inbound** command.  The Desktop executor owns the
+recorder, so it reports what actually happened; Core settles the matching
+operation and re-derives the privacy scope.  ``managed_stopped`` is the
+observed state (not the requested one), so an executor that failed to stop
+reports ``False`` rather than letting Core claim a verified pause.*/
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct CaptureAckPayload {
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub external_detected: ::std::option::Option<bool>,
+    #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+    pub managed_stopped: ::std::option::Option<bool>,
+    pub operation_id: ::std::string::String,
+    #[serde(rename = "type")]
+    pub type_: ::std::string::String,
+}
 ///`CaptureAggregate`
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
 pub struct CaptureAggregate {
@@ -130,6 +147,20 @@ impl ::std::default::Default for CaptureAggregate {
             managed_screenpipe_stopped: Default::default(),
         }
     }
+}
+/**Core asks the capture executor to run one managed-capture operation (FIX-006).
+
+Direction: Core -> Desktop executor.  Before this the Core recorded capture
+operations in its own list and nothing ever carried them to the process that
+owns the recorder, so Privacy Pause could never be acknowledged.  The
+operation is correlated by ``operation_id``; the executor answers with
+``capture.ack``.*/
+#[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
+pub struct CaptureOperationRequestedPayload {
+    pub kind: Kind,
+    pub operation_id: ::std::string::String,
+    #[serde(rename = "type")]
+    pub type_: ::std::string::String,
 }
 ///`CaptureState`
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
@@ -508,7 +539,7 @@ pub enum EventEnvelopePayload {
     #[serde(rename = "provider.state_changed")]
     ProviderStateChanged {
         epoch: i64,
-        kind: Kind,
+        kind: ProviderStateChangedPayloadKind,
         new_state: ProviderState,
         previous_state: ProviderState,
         provider_id: ::std::string::String,
@@ -557,6 +588,17 @@ pub enum EventEnvelopePayload {
     ///ErrorRaisedPayload
     #[serde(rename = "error.raised")]
     ErrorRaised { error: ErrorEnvelope },
+    /**CaptureOperationRequestedPayload
+
+Core asks the capture executor to run one managed-capture operation (FIX-006).
+
+Direction: Core -> Desktop executor.  Before this the Core recorded capture
+operations in its own list and nothing ever carried them to the process that
+owns the recorder, so Privacy Pause could never be acknowledged.  The
+operation is correlated by ``operation_id``; the executor answers with
+``capture.ack``.*/
+    #[serde(rename = "capture.operation_requested")]
+    CaptureOperationRequested { kind: Kind, operation_id: ::std::string::String },
 }
 ///`FloorOwner`
 #[derive(
@@ -984,19 +1026,16 @@ pub struct InterruptSettledPayload {
     PartialOrd
 )]
 pub enum Kind {
-    #[serde(rename = "asr")]
-    Asr,
-    #[serde(rename = "llm")]
-    Llm,
-    #[serde(rename = "tts")]
-    Tts,
+    #[serde(rename = "stop")]
+    Stop,
+    #[serde(rename = "resume")]
+    Resume,
 }
 impl ::std::fmt::Display for Kind {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         match *self {
-            Self::Asr => f.write_str("asr"),
-            Self::Llm => f.write_str("llm"),
-            Self::Tts => f.write_str("tts"),
+            Self::Stop => f.write_str("stop"),
+            Self::Resume => f.write_str("resume"),
         }
     }
 }
@@ -1006,9 +1045,8 @@ impl ::std::str::FromStr for Kind {
         value: &str,
     ) -> ::std::result::Result<Self, self::error::ConversionError> {
         match value {
-            "asr" => Ok(Self::Asr),
-            "llm" => Ok(Self::Llm),
-            "tts" => Ok(Self::Tts),
+            "stop" => Ok(Self::Stop),
+            "resume" => Ok(Self::Resume),
             _ => Err("invalid value".into()),
         }
     }
@@ -1352,6 +1390,23 @@ that travels to the WebView -- so there is exactly one verdict shape in the
 contract rather than two that could drift apart.*/
     #[serde(rename = "hub.attest_bind")]
     HubAttestBind { attestation: HubBindAttestation },
+    /**CaptureAckPayload
+
+The capture executor's answer to one ``capture.operation_requested`` (FIX-006).
+
+Direction: this is an **inbound** command.  The Desktop executor owns the
+recorder, so it reports what actually happened; Core settles the matching
+operation and re-derives the privacy scope.  ``managed_stopped`` is the
+observed state (not the requested one), so an executor that failed to stop
+reports ``False`` rather than letting Core claim a verified pause.*/
+    #[serde(rename = "capture.ack")]
+    CaptureAck {
+        #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+        external_detected: ::std::option::Option<bool>,
+        #[serde(skip_serializing_if = "::std::option::Option::is_none")]
+        managed_stopped: ::std::option::Option<bool>,
+        operation_id: ::std::string::String,
+    },
     /**PlaybackSetMutedPayload
 
 Output Mute / 静音播放 (PR-024, plan L989 / L321 / L1377).
@@ -1605,12 +1660,71 @@ impl ::std::convert::TryFrom<::std::string::String> for ProviderState {
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]
 pub struct ProviderStateChangedPayload {
     pub epoch: i64,
-    pub kind: Kind,
+    pub kind: ProviderStateChangedPayloadKind,
     pub new_state: ProviderState,
     pub previous_state: ProviderState,
     pub provider_id: ::std::string::String,
     #[serde(rename = "type")]
     pub type_: ::std::string::String,
+}
+///`ProviderStateChangedPayloadKind`
+#[derive(
+    ::serde::Deserialize,
+    ::serde::Serialize,
+    Clone,
+    Copy,
+    Debug,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd
+)]
+pub enum ProviderStateChangedPayloadKind {
+    #[serde(rename = "asr")]
+    Asr,
+    #[serde(rename = "llm")]
+    Llm,
+    #[serde(rename = "tts")]
+    Tts,
+}
+impl ::std::fmt::Display for ProviderStateChangedPayloadKind {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        match *self {
+            Self::Asr => f.write_str("asr"),
+            Self::Llm => f.write_str("llm"),
+            Self::Tts => f.write_str("tts"),
+        }
+    }
+}
+impl ::std::str::FromStr for ProviderStateChangedPayloadKind {
+    type Err = self::error::ConversionError;
+    fn from_str(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        match value {
+            "asr" => Ok(Self::Asr),
+            "llm" => Ok(Self::Llm),
+            "tts" => Ok(Self::Tts),
+            _ => Err("invalid value".into()),
+        }
+    }
+}
+impl ::std::convert::TryFrom<&str> for ProviderStateChangedPayloadKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: &str,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
+}
+impl ::std::convert::TryFrom<::std::string::String> for ProviderStateChangedPayloadKind {
+    type Error = self::error::ConversionError;
+    fn try_from(
+        value: ::std::string::String,
+    ) -> ::std::result::Result<Self, self::error::ConversionError> {
+        value.parse()
+    }
 }
 ///`ProviderStatus`
 #[derive(::serde::Deserialize, ::serde::Serialize, Clone, Debug)]

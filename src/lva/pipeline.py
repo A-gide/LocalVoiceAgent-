@@ -260,6 +260,10 @@ class VoiceCore:
         # only the stream producer was checked, never the point of write.
         self.core_effect_epoch: Callable[[], int] | None = None
         self.core_effect_gate: Callable[[int], bool] | None = None
+        # F-005: inference model authority.  The Core owns the committed Hub
+        # binding; the pipeline reads it through this hook instead of holding a
+        # model name of its own.
+        self.bound_inference_model: Callable[[], str | None] | None = None
         # When set, overrides automatic domain detection for the terminology
         # corrector and provides the contextual-bias word list to ASR engines
         # that support one.  None means "detect from the utterance".
@@ -493,6 +497,13 @@ class VoiceCore:
     def _handle_utterance(self, samples: np.ndarray) -> None:
         if self.mode == Mode.IDLE:
             return
+        # FIX-002 (remaining leg): snapshot the Core effect epoch *before* the
+        # blocking transcription.  A Privacy Pause / Standby / interruption that
+        # lands while ASR is running changes the mode and bumps the Core epoch,
+        # but the old code only re-read the mode for the *speak* decision -- the
+        # transcript, WAV and legacy Memory row were still written.  That is how
+        # a paused session kept persisting private speech.
+        epoch_at_utterance = self.core_effect_epoch() if self.core_effect_epoch else None
         t0 = time.perf_counter()
         engine = self.load_asr(self.asr_name)
         # Engines with contextual biasing get the current domain's word list;
@@ -503,6 +514,17 @@ class VoiceCore:
         asr_ms = (time.perf_counter() - t0) * 1000.0
         raw = ASR.clean(res.text)
         if not raw:
+            return
+        # Re-check now that the blocking call has returned: the mode may no longer
+        # permit archiving, and the Core epoch may have moved.  A stale transcript
+        # must not reach any sink -- not the event stream, not the WAV, not the
+        # legacy Memory.
+        if not self._utterance_effect_allowed(epoch_at_utterance):
+            log.info(
+                "Dropping a transcript whose mode/epoch was superseded during ASR "
+                "(mode=%s)",
+                self.mode.value,
+            )
             return
         corrected = self.vocab.correct(raw, domain=self.session_domain)
         self.stats["utterances"] += 1
@@ -545,6 +567,25 @@ class VoiceCore:
         # question matches itself and looks like proof the user said it before.
         self._run_turn(corrected, asr_ms, exclude_ids={row_id})
 
+    def _utterance_effect_allowed(self, epoch_at_utterance: int | None) -> bool:
+        """May an utterance transcribed under ``epoch_at_utterance`` still land?
+
+        Mirrors the reply-side gate in ``_run_turn``: the transcript is a side
+        effect, so it is checked where it is *used* rather than only where ASR
+        was started.  Both conditions fail closed -- a mode that no longer
+        records (IDLE) or a Core epoch that moved (pause/standby/interrupt)
+        invalidates the result, and a gate that raises is treated as a refusal.
+        """
+        if self.mode == Mode.IDLE:
+            return False
+        if self.core_effect_gate is not None and epoch_at_utterance is not None:
+            try:
+                return bool(self.core_effect_gate(epoch_at_utterance))
+            except Exception as exc:  # noqa: BLE001 - fail closed on a bad gate
+                log.warning("Core effect gate failed; dropping the transcript: %s", exc)
+                return False
+        return True
+
     def _save_audio(self, samples: np.ndarray, prefix: str) -> Path | None:
         try:
             d = C.RECORDINGS / time.strftime("%Y-%m-%d")
@@ -585,6 +626,13 @@ class VoiceCore:
         self._cancel.clear()
         self._generation += 1
         gen_id = self._generation
+        # F-004: the Player is a sink, not a second identity authority.  Publish
+        # the turn identity to it before anything is queued, so the callback
+        # checks against this turn rather than its own stale counter.  Without
+        # this a normal new turn was queued under gen 1 while the Player still
+        # held gen 0, and the legitimate audio was dropped as stale.
+        if self.player is not None and hasattr(self.player, "set_generation"):
+            self.player.set_generation(gen_id)
         # T03: snapshot the Core effect epoch *before* the turn runs.  Reading it
         # after the stream would see a mid-stream interrupt's new epoch and
         # wrongly accept the superseded reply; the epoch the turn belongs to is
@@ -602,7 +650,15 @@ class VoiceCore:
                       found=len(hits))
 
         llm_mode = "deep" if any(k in corrected.corrected for k in DEEP_HINTS) else "fast"
-        stream = LLM.stream(self._prompt_messages(corrected, memory_block), mode=llm_mode)
+        # F-005: the live turn must answer from the committed Hub binding, not the
+        # configured default.  `bound_inference_model` is injected by the owner
+        # (it lives on the Core runtime); when absent or unbound, the model stays
+        # None and `LLM.stream` uses its configured default.
+        model_hook = getattr(self, "bound_inference_model", None)
+        bound_model = model_hook() if model_hook else None
+        stream = LLM.stream(
+            self._prompt_messages(corrected, memory_block), mode=llm_mode, model=bound_model
+        )
 
         chunker = TTS.SentenceChunker()
         spoken: list[str] = []

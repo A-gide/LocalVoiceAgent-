@@ -1,6 +1,7 @@
 use std::io::{BufRead, BufReader, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
+use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -87,23 +88,49 @@ impl CoreSupervisor {
 
         // Read LVA_READY line from stdout
         let stdout = child.stdout.take().ok_or("Failed to capture core stdout pipe")?;
-        let mut reader = BufReader::new(stdout);
+        // F-009: `read_line` blocks until a newline or EOF, so checking the
+        // clock *around* it never enforced the deadline -- a core that wrote a
+        // partial line (or nothing) hung the supervisor forever.  The read runs
+        // on its own thread and the main thread waits on a channel with
+        // `recv_timeout`, so the deadline is real rather than decorative.
+        let (tx, rx) = mpsc::channel::<Result<String, String>>();
+        std::thread::spawn(move || {
+            let mut reader = BufReader::new(stdout);
+            loop {
+                let mut line = String::new();
+                match reader.read_line(&mut line) {
+                    Ok(0) => {
+                        let _ = tx.send(Err(
+                            "Core process stdout closed before emitting LVA_READY".to_string(),
+                        ));
+                        break;
+                    }
+                    Ok(_) => {
+                        if tx.send(Ok(line)).is_err() {
+                            break;
+                        }
+                    }
+                    Err(e) => {
+                        let _ = tx.send(Err(format!("Error reading core stdout: {}", e)));
+                        break;
+                    }
+                }
+            }
+        });
+
         let start = Instant::now();
         let ready_line: String;
-
         loop {
-            if start.elapsed() > timeout {
-                let _ = child.kill();
-                return Err("Timeout waiting for LVA_READY from core stdout".to_string());
-            }
-
-            let mut line = String::new();
-            match reader.read_line(&mut line) {
-                Ok(0) => {
+            let remaining = match timeout.checked_sub(start.elapsed()) {
+                Some(r) if !r.is_zero() => r,
+                _ => {
                     let _ = child.kill();
-                    return Err("Core process stdout closed before emitting LVA_READY".to_string());
+                    return Err("Timeout waiting for LVA_READY from core stdout".to_string());
                 }
-                Ok(_) => {
+            };
+
+            match rx.recv_timeout(remaining) {
+                Ok(Ok(line)) => {
                     let trimmed = line.trim();
                     if trimmed.starts_with("LVA_READY") {
                         ready_line = trimmed.to_string();
@@ -119,9 +146,19 @@ impl CoreSupervisor {
                         ));
                     }
                 }
-                Err(e) => {
+                Ok(Err(e)) => {
                     let _ = child.kill();
-                    return Err(format!("Error reading core stdout: {}", e));
+                    return Err(e);
+                }
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    let _ = child.kill();
+                    return Err("Timeout waiting for LVA_READY from core stdout".to_string());
+                }
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    let _ = child.kill();
+                    return Err(
+                        "Core process stdout closed before emitting LVA_READY".to_string()
+                    );
                 }
             }
         }

@@ -297,6 +297,20 @@ class Player:
     def generation(self) -> int:
         return self._generation
 
+    def set_generation(self, generation: int) -> None:
+        """Adopt the turn identity produced by the single authority (F-004).
+
+        The Player used to keep its own counter that only moved on ``flush``, so a
+        normal new turn -- which advances the pipeline's generation but does not
+        flush -- was queued under a generation the callback then rejected.  The
+        result was a turn whose text generated fine but whose audio was silently
+        dropped.  The pipeline owns the turn identity, so it publishes it here and
+        the sink checks against that one value; the equality test stays strict, so
+        a genuinely stale packet is still rejected.
+        """
+        with self._lock:
+            self._generation = generation
+
     @property
     def muted(self) -> bool:
         return self._muted.is_set()
@@ -466,6 +480,10 @@ class NullPlayer:
     @property
     def generation(self) -> int:
         return self._generation
+
+    def set_generation(self, generation: int) -> None:
+        with self._lock:
+            self._generation = generation
 
     @property
     def muted(self) -> bool:

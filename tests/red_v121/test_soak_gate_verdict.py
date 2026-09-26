@@ -9,7 +9,7 @@ import pathlib
 import subprocess
 import sys
 
-REPO = pathlib.Path(r"E:\AI\LocalVoiceAgent")
+REPO = pathlib.Path(__file__).resolve().parents[2]
 
 # soak writes these relative to its working directory, which is scripts/.
 REPO_ARTIFACTS = [

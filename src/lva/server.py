@@ -76,11 +76,13 @@ def _broadcast(event: PL.Event) -> None:
         return
     dead = []
     for ws in list(_sockets):
+        coro = ws.send_text(json.dumps(payload, ensure_ascii=False))
         try:
-            asyncio.run_coroutine_threadsafe(
-                ws.send_text(json.dumps(payload, ensure_ascii=False)), _loop
-            )
+            asyncio.run_coroutine_threadsafe(coro, _loop)
         except Exception:  # noqa: BLE001
+            # Scheduling failed, so the coroutine is never awaited; close it or
+            # Python reports "coroutine was never awaited" at GC time.
+            coro.close()
             dead.append(ws)
     for ws in dead:
         _sockets.discard(ws)
@@ -94,9 +96,11 @@ def _broadcast_ipc_event(env: EventEnvelope) -> None:
     dead = []
     text = json.dumps(data, ensure_ascii=False)
     for ws in list(_sockets):
+        coro = ws.send_text(text)
         try:
-            asyncio.run_coroutine_threadsafe(ws.send_text(text), _loop)
+            asyncio.run_coroutine_threadsafe(coro, _loop)
         except Exception:
+            coro.close()
             dead.append(ws)
     for ws in dead:
         _sockets.discard(ws)
@@ -169,7 +173,18 @@ def get_turn_executor() -> TurnExecutor:
             deep_hints=PL.DEEP_HINTS,
         )
         # Hand it to the runtime so any Core-side caller can reach the same executor.
-        get_runtime().turn_executor = _turn_executor
+        rt = get_runtime()
+        rt.turn_executor = _turn_executor
+
+        # T04: a typed `turn.send_text` must actually execute.  The dispatcher
+        # calls this runner; it records the reply on the runtime first so the
+        # `turn.completed` event carries the text.  `/api/ask` suppresses this and
+        # runs the executor itself (with domain/speak).
+        def _default_turn_runner(text: str, _turn) -> None:
+            outcome = _turn_executor.run_text_turn(text)
+            rt.reply_text = outcome.reply
+
+        rt.turn_runner = _default_turn_runner
     return _turn_executor
 
 
@@ -234,6 +249,24 @@ def get_runtime() -> RuntimeController:
         # injects it here -- Core keeps no audio-device reference of its own.
         _runtime.capture_coordinator.on_stop_mic = _stop_core_mic_device
         _runtime.capture_coordinator.on_start_mic = _start_core_mic_device
+        # T03: bind the legacy turn's side effects (history, legacy Memory) to the
+        # Core turn identity.  The pipeline writes those sinks *after* streaming,
+        # and previously only the stream producer was checked, so a cancelled
+        # reply still reached them.  Injecting the Core gate closes that path
+        # without rewriting the pipeline: the check happens at the point of write.
+        # Resolved lazily -- calling ``core()`` here would construct the ASR/TTS
+        # stack on every runtime creation, including the forbidden-mode paths that
+        # must reject *before* the core is loaded (I07/I08).
+        def _bind_effect_hooks(_core: PL.VoiceCore) -> None:
+            _core.core_effect_epoch = lambda: _runtime.interrupt_controller.provider_epoch
+            _core.core_effect_gate = lambda epoch: _runtime.effect_gate_allows(epoch)
+
+        _runtime.effect_hook_binder = _bind_effect_hooks
+        # The pipeline may already have been constructed (its `core()` is called
+        # first in the lifespan), so apply the binder to the existing instance as
+        # well as to any built later.
+        if _core is not None:
+            _bind_effect_hooks(_core)
     return _runtime
 
 
@@ -316,6 +349,11 @@ def core() -> PL.VoiceCore:
     global _core
     if _core is None:
         _core = PL.VoiceCore(on_event=_broadcast)
+        # The runtime was built first and left a binder for the pipeline's effect
+        # hooks (T03); apply it now so the sinks share the Core turn identity.
+        binder = getattr(_runtime, "effect_hook_binder", None)
+        if binder is not None:
+            binder(_core)
     return _core
 
 
@@ -327,8 +365,16 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     c = core()
     c.start()
     rt = get_runtime()
-    rt.set_mode(Mode.PASSIVE)  # passive capture is the safe default
-    c.set_mode(PL.Mode.RECORDING)
+    # T02 / I19: startup must not implicitly open the microphone.  The previous
+    # boot went straight to Passive *and* set the legacy pipeline to RECORDING,
+    # so the app was capturing reality the moment it launched -- before the user
+    # had consented to anything.  The safe initial state is Standby: AI idle and
+    # all LVA-managed capture off.  A mode only moves when a caller explicitly
+    # asks for it (`runtime.set_mode`), which is where the capture intent lives.
+    rt.set_mode(Mode.STANDBY)
+    c.set_mode(PL.Mode.IDLE)
+    # The Core mic device is not started here: it starts only when a mode that
+    # needs audio is entered (`runtime.set_mode` -> `start_core_mic`).
     log.info("LVA Core ready: asr=%s tts=%s mic=%s out=%s", c.asr_name,
              getattr(c.tts, "name", "none"), getattr(c.mic, "device_name", ""),
              getattr(c.player, "device_name", ""))
@@ -464,12 +510,18 @@ async def ask(body: AskBody) -> dict:
     # responsibility, not this route's.  Rejected before any model or Journal work
     # so a forbidden mode cannot warm up the ASR/TTS stack or open a Journal
     # connection as a side effect (plan L311/L318).
-    opened = rt.execute_command(
-        CommandEnvelope(
-            type="turn.send_text",
-            payload=TurnSendTextPayload(type="turn.send_text", text=body.text),
+    # The route owns the richer execution below (domain + speak), so it suppresses
+    # the dispatcher's default runner for this one turn (T04).
+    rt.turn_runner_suppressed = True
+    try:
+        opened = rt.execute_command(
+            CommandEnvelope(
+                type="turn.send_text",
+                payload=TurnSendTextPayload(type="turn.send_text", text=body.text),
+            )
         )
-    )
+    finally:
+        rt.turn_runner_suppressed = False
     if opened.status != "applied":
         err = opened.error or ErrorEnvelope(
             code=ErrorCode.PASSIVE_PROVIDER_FORBIDDEN,

@@ -46,6 +46,28 @@ class TemporalRecallEngine:
     def __init__(self, conn: sqlite3.Connection) -> None:
         self.conn = conn
 
+    #: Marks a revision that came from a source redaction rather than a user edit.
+    REDACTION_REASON = "source_redaction"
+
+    @staticmethod
+    def _withhold_redacted_raw_text(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Blank ``raw_text`` for events whose current revision is a redaction.
+
+        A redaction is only meaningful if the pre-redaction text stops being
+        *delivered*.  Keeping ``raw_text`` in the payload meant the caller (the
+        Memory UI, or any command client) could still read exactly what the source
+        asked to remove -- the redaction changed the field on screen and nothing
+        else.
+
+        The original stays in the database: it is what proves what was received,
+        and I06 forbids rewriting it.  It is simply not part of the search result.
+        """
+        for row in rows:
+            if row.get("redaction_revision") is not None:
+                row["raw_text"] = None
+                row["raw_text_withheld"] = True
+        return rows
+
     def search(
         self,
         query: str,
@@ -91,6 +113,10 @@ class TemporalRecallEngine:
                 sql = f"""
                     SELECT e.event_id, e.occurred_at_utc_us, e.speaker, e.source,
                            e.raw_text, e.current_text, e.current_revision, e.confidence, e.domain,
+                           (SELECT r.reason FROM event_revisions r
+                             WHERE r.event_id = e.event_id
+                               AND r.revision = e.current_revision
+                               AND r.reason = 'source_redaction') AS redaction_revision,
                            e.utc_offset_minutes
                     FROM current_event_text e
                     WHERE 1=1
@@ -101,7 +127,7 @@ class TemporalRecallEngine:
                 query_params = params + [limit]
                 cur = self.conn.execute(sql, query_params)
                 rows = cur.fetchall()
-                return [dict(r) for r in rows]
+                return self._withhold_redacted_raw_text([dict(r) for r in rows])
             search_target = clean_kw
         else:
             search_target = query
@@ -110,6 +136,10 @@ class TemporalRecallEngine:
         sql = f"""
             SELECT e.event_id, e.occurred_at_utc_us, e.speaker, e.source,
                    e.raw_text, e.current_text, e.current_revision, e.confidence, e.domain,
+                   (SELECT r.reason FROM event_revisions r
+                     WHERE r.event_id = e.event_id
+                       AND r.revision = e.current_revision
+                       AND r.reason = 'source_redaction') AS redaction_revision,
                    e.utc_offset_minutes
             FROM current_event_text e
             WHERE (
@@ -132,6 +162,10 @@ class TemporalRecallEngine:
             fallback_sql = f"""
                 SELECT e.event_id, e.occurred_at_utc_us, e.speaker, e.source,
                        e.raw_text, e.current_text, e.current_revision, e.confidence, e.domain,
+                       (SELECT r.reason FROM event_revisions r
+                         WHERE r.event_id = e.event_id
+                           AND r.revision = e.current_revision
+                           AND r.reason = 'source_redaction') AS redaction_revision,
                        e.utc_offset_minutes
                 FROM current_event_text e
                 WHERE e.current_text LIKE ?
@@ -142,7 +176,7 @@ class TemporalRecallEngine:
             cur = self.conn.execute(fallback_sql, [f"%{search_target}%"] + params + [limit])
             rows = cur.fetchall()
 
-        return [dict(r) for r in rows]
+        return self._withhold_redacted_raw_text([dict(r) for r in rows])
 
     def format_history_context(self, hits: list[dict[str, Any]]) -> str:
         """Format recalled events into a prompt memory context block."""

@@ -99,6 +99,24 @@ CREATE TABLE IF NOT EXISTS deletion_audit (
   deleted_count INTEGER NOT NULL
 );
 
+-- T01: a source record the importer could not use (missing/unparseable
+-- timestamp, or an unverifiable source redaction).  It is recorded rather than
+-- silently skipped, so the checkpoint can eventually close without losing the
+-- fact that a record was left uncovered.  ``abandoned`` marks the explicit exit:
+-- the range moved past it after repeated attempts and the gap is on record.
+CREATE TABLE IF NOT EXISTS import_quarantine (
+  importer TEXT NOT NULL,
+  external_source TEXT NOT NULL,
+  record_key TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  abandoned INTEGER NOT NULL DEFAULT 0,
+  first_seen_utc_us INTEGER NOT NULL,
+  last_seen_utc_us INTEGER NOT NULL,
+  abandoned_at_utc_us INTEGER,
+  PRIMARY KEY(importer, external_source, record_key)
+);
+
 CREATE VIRTUAL TABLE IF NOT EXISTS events_fts USING fts5(
   event_id UNINDEXED,
   corrected_seg,

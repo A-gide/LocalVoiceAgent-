@@ -266,6 +266,116 @@ class JournalRepository:
 
     create_event = append_event
 
+    # --------------------------------------------------------------- quarantine (T01)
+    QUARANTINE_IMPORTER = "screenpipe_rest"
+
+    def record_quarantined_record(
+        self,
+        record_key: str,
+        reason: str,
+        importer: str | None = None,
+        external_source: str = "audio",
+        *,
+        commit: bool = True,
+    ) -> int:
+        """Record (and count) a source record the importer could not use.
+
+        A record that cannot be imported used to be *silently* skipped, so the
+        checkpoint blocked forever with no on-record explanation.  Recording it
+        makes the gap auditable and lets the explicit abandon path below close
+        the range without pretending the record was imported.
+
+        Returns the number of times this record has now been seen.
+        """
+        now_us = int(datetime.now(timezone.utc).timestamp() * 1_000_000)
+        imp = importer or self.QUARANTINE_IMPORTER
+        with self.conn if commit else contextlib.nullcontext():
+            self.conn.execute(
+                """
+                INSERT INTO import_quarantine (
+                    importer, external_source, record_key, reason, attempts,
+                    abandoned, first_seen_utc_us, last_seen_utc_us
+                ) VALUES (?, ?, ?, ?, 1, 0, ?, ?)
+                ON CONFLICT(importer, external_source, record_key) DO UPDATE SET
+                    reason = excluded.reason,
+                    attempts = import_quarantine.attempts + 1,
+                    last_seen_utc_us = excluded.last_seen_utc_us
+                """,
+                (imp, external_source, record_key, reason, now_us, now_us),
+            )
+            row = self.conn.execute(
+                "SELECT attempts FROM import_quarantine "
+                "WHERE importer = ? AND external_source = ? AND record_key = ?",
+                (imp, external_source, record_key),
+            ).fetchone()
+        return int(row["attempts"]) if row else 1
+
+    def quarantine_attempts(
+        self,
+        record_key: str,
+        importer: str | None = None,
+        external_source: str = "audio",
+    ) -> int:
+        imp = importer or self.QUARANTINE_IMPORTER
+        row = self.conn.execute(
+            "SELECT attempts FROM import_quarantine "
+            "WHERE importer = ? AND external_source = ? AND record_key = ?",
+            (imp, external_source, record_key),
+        ).fetchone()
+        return int(row["attempts"]) if row else 0
+
+    def abandon_quarantined_record(
+        self,
+        record_key: str,
+        importer: str | None = None,
+        external_source: str = "audio",
+        *,
+        commit: bool = True,
+    ) -> bool:
+        """Mark a quarantined record abandoned: the range may close past it.
+
+        This is the explicit operational exit required by T01-R2.  The record is
+        not imported and not deleted -- it stays on record with its reason and an
+        abandon timestamp, so the gap is visible rather than hidden.
+        """
+        now_us = int(datetime.now(timezone.utc).timestamp() * 1_000_000)
+        imp = importer or self.QUARANTINE_IMPORTER
+        with self.conn if commit else contextlib.nullcontext():
+            cur = self.conn.execute(
+                """
+                UPDATE import_quarantine
+                SET abandoned = 1, abandoned_at_utc_us = ?
+                WHERE importer = ? AND external_source = ? AND record_key = ?
+                  AND abandoned = 0
+                """,
+                (now_us, imp, external_source, record_key),
+            )
+        return cur.rowcount > 0
+
+    def is_quarantined_abandoned(
+        self,
+        record_key: str,
+        importer: str | None = None,
+        external_source: str = "audio",
+    ) -> bool:
+        imp = importer or self.QUARANTINE_IMPORTER
+        row = self.conn.execute(
+            "SELECT abandoned FROM import_quarantine "
+            "WHERE importer = ? AND external_source = ? AND record_key = ?",
+            (imp, external_source, record_key),
+        ).fetchone()
+        return bool(row and row["abandoned"])
+
+    def quarantine_summary(self) -> dict[str, int]:
+        """Counts for reporting: open (still blocking) vs abandoned (on record)."""
+        rows = self.conn.execute(
+            "SELECT abandoned, COUNT(*) AS n FROM import_quarantine GROUP BY abandoned"
+        ).fetchall()
+        summary = {"open": 0, "abandoned": 0}
+        for row in rows:
+            summary["abandoned" if row["abandoned"] else "open"] = int(row["n"])
+        return summary
+
     def add_revision(
         self,
         event_id: str | UUID,

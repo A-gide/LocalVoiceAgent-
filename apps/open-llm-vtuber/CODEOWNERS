@@ -1,0 +1,7 @@
+# Open-LLM-VTuber Vendored Subsystem — Architecture Freeze Notice
+# Per LocalVoiceAgent Architecture Plan v1.2 (ADR-010):
+# This subsystem is FROZEN. All conversation, session, turn, floor, interrupt,
+# and memory authority is strictly owned by LVA Core (`src/lva`).
+# Direct modifications to conversation pipelines, memory routers, or provider
+# instantiations in this directory are forbidden.
+* @lva-team

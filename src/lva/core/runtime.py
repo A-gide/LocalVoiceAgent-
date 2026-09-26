@@ -17,7 +17,14 @@ from ..contracts.enums import (
     ServiceState,
 )
 from ..contracts.errors import ErrorEnvelope
-from ..contracts.events import EventEnvelope, EventPayload, PrivacyScopeChangedPayload
+from ..contracts.events import (
+    EventEnvelope,
+    EventPayload,
+    PrivacyScopeChangedPayload,
+    TurnCancelledPayload,
+    TurnCompletedPayload,
+    TurnStartedPayload,
+)
 from ..contracts.ids import TurnId
 from ..contracts.state import (
     HubBinding,
@@ -68,10 +75,19 @@ class RuntimeController:
         # drag concrete clients into `core/`, so the executor is injected by the
         # owner (server.py) rather than imported here.
         self.turn_executor = turn_executor
+        # T04: a bare typed ``turn.send_text`` must trigger the actual execution,
+        # not just allocate a Turn.  The orchestrator is injected as a narrow
+        # callable so `core/` still imports no concrete client.  ``/api/ask`` owns
+        # a richer execution (domain/speak), so it suppresses this default runner
+        # while it opens its own turn and runs the executor itself.
+        self.turn_runner: Callable[[str], Any] | None = None
+        self.turn_runner_suppressed: bool = False
+        self._pending_user_text: str | None = None
         # Output Mute (PR-024).  Core owns the *intent* -- the published
         # `playback.muted` is its answer -- but holds no player reference, so the
         # owner supplies the action, exactly like `on_interrupt_action`.
         self._on_playback_mute = on_playback_mute
+        self.reply_text: str = ""
         self._snapshot_version: int = 0
         self._runtime_control_revision: int = 0
         self._hub_binding_revision: int = 0
@@ -133,6 +149,31 @@ class RuntimeController:
     @property
     def current_epoch(self) -> int:
         return self.interrupt_controller.provider_epoch
+
+    def effect_gate_allows(self, provider_epoch: int) -> bool:
+        """T03: may a side effect that captured ``provider_epoch`` still land?
+
+        The concrete sinks are owned by the legacy pipeline, but the identity and
+        the interrupt epoch live here, so this is the one place that can answer
+        the question for them.  An interrupt bumps the epoch, so a reply produced
+        under an older epoch is stale and must not reach history or Memory.  The
+        check is equality, not ordering: any epoch movement invalidates the turn.
+        """
+        return provider_epoch == self.interrupt_controller.provider_epoch
+
+    def _run_turn_runner(self, text: str, turn: TurnId) -> None:
+        """Run the injected turn runner (T04), unless a richer caller owns this turn.
+
+        ``/api/ask`` opens the turn through this same dispatcher and then runs the
+        executor itself (with domain/``speak``), so it suppresses the default
+        runner while it does, to avoid executing the turn twice.
+        """
+        if self.turn_runner_suppressed or self.turn_runner is None:
+            return
+        try:
+            self.turn_runner(text, turn)
+        except Exception as exc:  # noqa: BLE001 - a failed turn must not break the command
+            log.exception("Turn runner failed for turn %s: %s", turn, exc)
 
     def get_state(self) -> RuntimeState:
         return RuntimeState(
@@ -351,6 +392,32 @@ class RuntimeController:
         except Exception as exc:  # noqa: BLE001 - reported as unavailable
             log.warning("Hub inventory refresh failed: %s", exc)
             return None
+
+    def _hub_refresh_result(self, command_id: Any, c_type: str) -> dict:
+        """The `hub.refresh` result: `accepted` only when the Hub was really read.
+
+        Returning the failure as an accepted command with no ``models`` key made the
+        UI report "refreshed (0 models)" for an unreachable Hub -- the same
+        pretend-success the R24 review removed from the scheduler, one layer up.
+        A failed read is a rejection carrying a code the caller can act on.
+        """
+        inventory = self._hub_inventory_live()
+        if inventory is None:
+            return {
+                "status": "rejected",
+                "data": {"type": c_type, "status": "inventory_unavailable"},
+                "error": ErrorEnvelope(
+                    code=ErrorCode.HUB_UNAVAILABLE,
+                    message=(
+                        "the Hub inventory could not be read; the model list is "
+                        "unknown rather than empty"
+                    ),
+                    severity="error",
+                    component="core.hub",
+                    correlation_id=command_id,
+                ),
+            }
+        return {"status": "accepted", "data": {"type": c_type, **inventory}}
 
     @staticmethod
     def _run_coroutine_blocking(coro: Any) -> Any:
@@ -723,7 +790,18 @@ class RuntimeController:
             if self.session_controller.current_session_id is None:
                 self.session_controller.start_session()
             session_id = payload.session_id or self.session_controller.current_session_id
+            # T04: record the text *before* the turn is created, so the
+            # `turn.started` event is emitted with the user's text already known
+            # (the callback fires from inside `create_turn`).
+            self._pending_user_text = payload.text
             turn = self.turn_controller.create_turn(session_id=session_id, user_text=payload.text)
+            self._pending_user_text = None
+            # T04: run the turn, not just record it.  The typed path used to return
+            # `applied` with a TurnId and execute nothing, so a caller that went
+            # through the dispatcher (the desktop UI does) saw a turn open and
+            # never close.  The runner is injected; when it is absent the turn is
+            # still opened so the mode-guard contract is unchanged.
+            self._run_turn_runner(payload.text, turn)
             return CommandResult(
                 command_id=cmd.command_id,
                 status="applied",
@@ -938,9 +1016,8 @@ class RuntimeController:
                     # than answered with a stale cache.
                     return CommandResult(
                         command_id=cmd.command_id,
-                        status="accepted",
                         snapshot_version=self._snapshot_version,
-                        data={"type": c_type, **(self._hub_inventory_live() or {})},
+                        **(self._hub_refresh_result(cmd.command_id, c_type)),
                     )
                 # The dispatcher is synchronous while the saga is async, so the
                 # work has to be *scheduled*.  Reporting `delegated_to_saga`
@@ -1010,12 +1087,53 @@ class RuntimeController:
 
     def _on_turn_started(self, turn_id: TurnId) -> None:
         self._snapshot_version += 1
+        # T04: the typed turn lifecycle events were declared in the contract but
+        # never emitted, so the UI had no typed way to learn a turn open/close.
+        try:
+            self.emit_event(
+                event_type="turn.started",
+                payload=TurnStartedPayload(
+                    type="turn.started",
+                    turn_id=turn_id,
+                    provider_epoch=self.interrupt_controller.provider_epoch,
+                    user_text=self._pending_user_text,
+                ),
+                turn_id=turn_id,
+            )
+        except Exception as exc:  # noqa: BLE001 - an emit failure must not break the turn
+            log.warning("Failed to emit turn.started: %s", exc)
 
     def _on_turn_cancelled(self, turn_id: TurnId, reason: str) -> None:
         self._snapshot_version += 1
+        try:
+            self.emit_event(
+                event_type="turn.cancelled",
+                payload=TurnCancelledPayload(
+                    type="turn.cancelled",
+                    turn_id=turn_id,
+                    provider_epoch=self.interrupt_controller.provider_epoch,
+                    reason=reason,
+                ),
+                turn_id=turn_id,
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Failed to emit turn.cancelled: %s", exc)
 
     def _on_turn_completed(self, turn_id: TurnId) -> None:
         self._snapshot_version += 1
+        try:
+            self.emit_event(
+                event_type="turn.completed",
+                payload=TurnCompletedPayload(
+                    type="turn.completed",
+                    turn_id=turn_id,
+                    provider_epoch=self.interrupt_controller.provider_epoch,
+                    reply_text=self.reply_text or "",
+                ),
+                turn_id=turn_id,
+            )
+        except Exception as exc:  # noqa: BLE001
+            log.warning("Failed to emit turn.completed: %s", exc)
 
     def _on_floor_changed(self, old: FloorOwner, new: FloorOwner) -> None:
         self._snapshot_version += 1

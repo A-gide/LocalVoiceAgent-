@@ -45,9 +45,10 @@ RUNTIME_CONFIG_FILES = ("settings.json", "services.json", "user_profile.json")
 def _subprocess_git(*args: str) -> tuple[int, str]:
     import subprocess
 
+    repo_root = REPO_ROOT.resolve()
     proc = subprocess.run(
-        ["git", "-c", "safe.directory=E:/AI/LocalVoiceAgent", "-C",
-         str(REPO_ROOT).replace("\\", "/"), *args],
+        ["git", "-c", f"safe.directory={repo_root.as_posix()}", "-C",
+         str(repo_root), *args],
         capture_output=True, text=True,
     )
     return proc.returncode, proc.stdout

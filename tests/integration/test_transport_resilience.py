@@ -15,18 +15,48 @@ from uuid import uuid4
 import pytest
 from starlette.testclient import TestClient
 
+from lva import pipeline
 from lva.contracts.enums import ErrorCode, Mode
 from lva.server import app, auth_validator, get_runtime
 
 pytestmark = pytest.mark.usefixtures("isolated_server_data")
 
 
+class _NoModelVad:
+    """VAD boundary for transport tests that never submit audio frames."""
+
+    def __init__(self, *, min_silence=0.45, **_kwargs):
+        self.min_silence = min_silence
+
+    def accept(self, _block):
+        return []
+
+    @property
+    def speech_detected(self):
+        return False
+
+    def reset(self):
+        pass
+
+
 @pytest.fixture(autouse=True)
-def setup_auth():
-    """Configure auth_validator with test token for transport tests."""
+def setup_auth(monkeypatch):
+    """Configure auth and keep transport tests independent of audio models."""
     token = "test-secret-token-256bit"
     auth_validator.set_token(token)
     auth_validator.require_auth = True
+
+    voice_core_type = pipeline.VoiceCore
+
+    def make_voice_core_without_audio_models(*, on_event=None):
+        return voice_core_type(
+            on_event=on_event,
+            tts_engine="none",
+            use_player=False,
+        )
+
+    monkeypatch.setattr(pipeline, "VoiceCore", make_voice_core_without_audio_models)
+    monkeypatch.setattr(pipeline, "Vad", _NoModelVad)
     yield
     # Reset auth after test
     auth_validator.require_auth = True

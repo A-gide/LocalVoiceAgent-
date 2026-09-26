@@ -136,8 +136,40 @@ pub fn attest_for_port(
     attestation_id: &str,
 ) -> (HubBindAttestation, Option<u32>) {
     let bound: Vec<ListenerRow> = rows.iter().filter(|row| row.port == port).cloned().collect();
-    let owner = bound.iter().find_map(|row| row.owning_process);
-    (attest_from_rows(&bound, attestation_id), owner)
+    // The owner is only reported when *every* listener on the port agrees on it.
+    // Taking the first non-`None` value (`find_map`) meant a row whose PID could
+    // not be read simply did not participate: the correlation looked complete
+    // while part of the evidence was missing, and two different processes on the
+    // same port were indistinguishable from one.
+    let mut owners: Vec<u32> = Vec::new();
+    let mut any_unreadable = false;
+    for row in &bound {
+        match row.owning_process {
+            Some(pid) => {
+                if !owners.contains(&pid) {
+                    owners.push(pid);
+                }
+            }
+            None => any_unreadable = true,
+        }
+    }
+    let owner = if !bound.is_empty() && !any_unreadable && owners.len() == 1 {
+        Some(owners[0])
+    } else {
+        None
+    };
+
+    let mut attestation = attest_from_rows(&bound, attestation_id);
+    if attestation.status == AttestationStatus::VerifiedLoopback
+        && (any_unreadable || owners.len() > 1)
+    {
+        // Either part of the evidence could not be read or the port is shared by
+        // several processes: in both cases the control port is not associated with
+        // one identified process, so the bind is not verified (plan L1213/L662).
+        attestation.status = AttestationStatus::UnverifiedBind;
+        attestation.reason_code = Some(HubBindReason::ProcessUnmapped);
+    }
+    (attestation, owner)
 }
 
 /// Classify a single bound address into one of the four frozen classes.
@@ -305,4 +337,83 @@ mod tests {
         assert!(!att135.control_allowed());
     }
 
+    #[test]
+    fn a_loopback_port_whose_owner_cannot_be_read_does_not_verify() {
+        // The review's finding: a row whose PID cannot be parsed used to be kept
+        // but ignored by `find_map`, so the correlation looked complete while part
+        // of the evidence was missing.  Plan L1213/L662 require the control port to
+        // be associated with an *identified* process.
+        let rows = vec![ListenerRow {
+            address: IpAddr::from_str("127.0.0.1").unwrap(),
+            port: 8080,
+            owning_process: None,
+        }];
+        let (att, owner) = attest_for_port(&rows, 8080, "att-owner-missing");
+        assert_eq!(att.status, AttestationStatus::UnverifiedBind);
+        assert!(!att.control_allowed(), "an unreadable owner is not an identification");
+        assert_eq!(att.reason_code, Some(HubBindReason::ProcessUnmapped));
+        assert_eq!(owner, None, "no owner may be reported when one is unknown");
+    }
+
+    #[test]
+    fn a_loopback_port_shared_by_two_processes_does_not_verify() {
+        // Two different owners on the same port means the port is not associated
+        // with one identified process, so the verdict must not pass even though
+        // every row is loopback and every PID is readable.
+        let rows = vec![
+            ListenerRow {
+                address: IpAddr::from_str("127.0.0.1").unwrap(),
+                port: 8080,
+                owning_process: Some(11),
+            },
+            ListenerRow {
+                address: IpAddr::from_str("::1").unwrap(),
+                port: 8080,
+                owning_process: Some(22),
+            },
+        ];
+        let (att, owner) = attest_for_port(&rows, 8080, "att-two-owners");
+        assert_eq!(att.status, AttestationStatus::UnverifiedBind);
+        assert!(!att.control_allowed(), "a shared port has no single identified owner");
+        assert_eq!(att.reason_code, Some(HubBindReason::ProcessUnmapped));
+        assert_eq!(owner, None);
+    }
+
+    #[test]
+    fn a_loopback_port_with_one_process_on_both_stacks_still_verifies() {
+        // The counterpart of the test above: the same process listening on IPv4
+        // and IPv6 loopback is a normal Hub and must keep verifying.
+        let rows = vec![
+            ListenerRow {
+                address: IpAddr::from_str("127.0.0.1").unwrap(),
+                port: 8080,
+                owning_process: Some(77),
+            },
+            ListenerRow {
+                address: IpAddr::from_str("::1").unwrap(),
+                port: 8080,
+                owning_process: Some(77),
+            },
+        ];
+        let (att, owner) = attest_for_port(&rows, 8080, "att-one-owner");
+        assert_eq!(att.status, AttestationStatus::VerifiedLoopback);
+        assert!(att.control_allowed());
+        assert_eq!(owner, Some(77));
+    }
+
+    #[test]
+    fn an_unreadable_pid_is_kept_as_a_row_but_a_malformed_row_is_dropped() {
+        // Two different discards: the negative tests above depend on telling them
+        // apart, because only the first leaves the owner set incomplete.
+        let unreadable_pid = parse_listener_table(
+            "  TCP    127.0.0.1:8080      0.0.0.0:0   LISTENING   notanumber\\n",
+        );
+        assert_eq!(unreadable_pid.len(), 1, "an unreadable PID must keep the row");
+        assert_eq!(unreadable_pid[0].owning_process, None);
+
+        let malformed = parse_listener_table(
+            "  TCP    :0       0.0.0.0:0   LISTENING   4411\\n",
+        );
+        assert!(malformed.is_empty(), "a malformed row has no address to trust");
+    }
 }

@@ -1,15 +1,9 @@
 name: v1.2.1 gates
 
-# The v1.2.1 conformance gates. Some later-slice tests remain RED: the
-# R03b contract work is closed, but the frozen v1.2.1 plan still raises the bar
-# (aggregate CAS, fail-closed auth, Core bootstrap wiring, I21/I22, Standby
-# capture semantics, Output Mute, Hub effective-bind attestation).
+# The red-v121 suite follows the required outcome recorded in tests/run_groups.py
+# for the checked-out revision. Failures are never hidden with continue-on-error.
 #
-# This workflow is deliberately NOT masked with continue-on-error: a red run is
-# the honest signal that G0 is not yet met. Each group is tied to the fix slice
-# that is expected to turn it green.
-#
-#   red-v121        -> R03, R05, R06, R09, R10, R12, R13, R14
+#   red-v121        -> v1.2.1 gap reproductions; see tests/run_groups.py
 #   harness         -> must stay green (instrument self-tests, hardware-free)
 #   acoustic-gate   -> hardware-free only; real devices live in wasapi-device.yml
 
@@ -19,9 +13,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  LVA_ROOT: ${{ github.workspace }}
+
 jobs:
   red-v121:
-    name: v1.2.1 gap reproductions (expected RED)
+    name: v1.2.1 gap reproductions
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -34,6 +31,19 @@ jobs:
       - name: Install dependencies
         shell: pwsh
         run: uv sync --locked --extra dev --python 3.11
+
+      - name: Set up Node for code generation
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install TypeScript generator
+        shell: pwsh
+        working-directory: apps/desktop-ui
+        run: npm ci
+      - name: Build Rust generator
+        shell: pwsh
+        run: cargo build --release --manifest-path tools/codegen-rust/Cargo.toml
 
       - name: Harness self-tests (must be green)
         shell: pwsh
@@ -102,6 +112,7 @@ jobs:
           }
           if ($rc -eq 0) { throw "non-OK status must not exit 0" }
           Write-Host "OK: degraded to '$($report.status)' with an explicit reason and a written report."
+          exit 0
 
       - name: Upload acoustic reports
         if: always()

@@ -10,7 +10,7 @@ import json
 import pathlib
 import subprocess
 
-REPO = pathlib.Path(r"E:\AI\LocalVoiceAgent")
+REPO = pathlib.Path(__file__).resolve().parents[2]
 MODULE = REPO / "apps" / "desktop-ui" / "src" / "stores" / "modeTransition.js"
 
 

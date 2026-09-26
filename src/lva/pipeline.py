@@ -249,6 +249,13 @@ class VoiceCore:
 
         self.history: list[dict] = []
         self.last_turn: TurnMetrics | None = None
+        # T03: the Core owns the turn identity and the effect gate.  These hooks
+        # are injected by the owner (server.py) so the legacy side effects
+        # (history, legacy Memory) are bound to the *same* epoch as the Core
+        # turn.  Without them a cancelled reply still reached the sinks, because
+        # only the stream producer was checked, never the point of write.
+        self.core_effect_epoch: Callable[[], int] | None = None
+        self.core_effect_gate: Callable[[int], bool] | None = None
         # When set, overrides automatic domain detection for the terminology
         # corrector and provides the contextual-bias word list to ASR engines
         # that support one.  None means "detect from the utterance".
@@ -559,6 +566,11 @@ class VoiceCore:
         self._cancel.clear()
         self._generation += 1
         gen_id = self._generation
+        # T03: snapshot the Core effect epoch *before* the turn runs.  Reading it
+        # after the stream would see a mid-stream interrupt's new epoch and
+        # wrongly accept the superseded reply; the epoch the turn belongs to is
+        # the one that was current when it started.
+        epoch_at_turn = self.core_effect_epoch() if self.core_effect_epoch else None
 
         # --- deterministic history routing; never left to the model to decide
         memory_block = ""
@@ -675,11 +687,27 @@ class VoiceCore:
         m.total_ms = (time.perf_counter() - t_turn) * 1000.0
         # A turn cancelled before it produced anything is not a reply; announcing
         # one would make a mode switch look like the assistant had spoken.
-        if reply or not m.cancelled:
+        # T03: the reply is a *side effect*, so it is gated at the point of use.
+        # Two independent guards: the legacy generation (this turn is still the
+        # live one) and the Core effect epoch captured at turn start (no interrupt
+        # has superseded it since).  Checking only the stream producer let a
+        # cancelled reply reach history and the legacy Memory.
+        def _effect_allowed() -> bool:
+            if self._cancel.is_set() or gen_id != self._generation:
+                return False
+            if self.core_effect_gate is not None and epoch_at_turn is not None:
+                try:
+                    return bool(self.core_effect_gate(epoch_at_turn))
+                except Exception as exc:  # noqa: BLE001 - fail closed on a bad gate
+                    log.warning("Core effect gate failed; dropping the reply: %s", exc)
+                    return False
+            return True
+
+        if _effect_allowed() and (reply or not m.cancelled):
             self.emit("reply", text=reply, spoken=spoken, metrics=m.as_dict(),
                       cancelled=m.cancelled, mode=llm_mode)
 
-        if reply:
+        if reply and _effect_allowed():
             self.history.append({"role": "user", "content": corrected.corrected})
             self.history.append({"role": "assistant", "content": reply})
             # The assistant's own words are archived as part of the room record,
@@ -687,6 +715,8 @@ class VoiceCore:
             self.memory.add(raw_text=reply, fixed_text=reply, source="assistant",
                             domain=corrected.domain, duration_s=0.0,
                             meta={"in_reply_to": corrected.raw[:120]})
+        elif reply:
+            log.info("Dropping a cancelled reply from history/Memory (epoch gate)")
 
     # -------------------------------------------------------------- barge-in
     def barge_in(self, level: float = 0.0) -> None:

@@ -159,6 +159,10 @@ class TurnExecutor:
                 source="text",
                 domain=outcome.domain,
             )
+            # T04: record the reply before completing the turn, so the
+            # `turn.completed` event (emitted from `complete_turn`) carries the
+            # text the caller expects to render.
+            rt.reply_text = outcome.reply
             rt.turn_controller.complete_turn(turn_id)
 
         return outcome

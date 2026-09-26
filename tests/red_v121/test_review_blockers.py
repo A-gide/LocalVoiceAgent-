@@ -33,6 +33,15 @@ from lva.core.runtime import RuntimeController  # noqa: E402
 UI = REPO / "apps" / "desktop-ui" / "src"
 
 
+def _git(*args: str) -> subprocess.CompletedProcess:
+    repo = REPO.resolve()
+    return subprocess.run(
+        ["git", "-c", f"safe.directory={repo.as_posix()}", "-C", str(repo), *args],
+        capture_output=True,
+        text=True,
+    )
+
+
 # ============================================================ blocker 1
 # The frontend cannot be executed here, so the source assertion is kept but is
 # paired with behavioural tests of the envelope it produces.
@@ -273,20 +282,12 @@ def test_generator_sources_are_not_gitignored():
         "tools/codegen-rust/src/main.rs",
         "apps/desktop-ui/tools/generate-ipc.mjs",
     ):
-        proc = subprocess.run(
-            ["git", "-c", "safe.directory=E:/AI/LocalVoiceAgent", "-C", str(REPO),
-             "check-ignore", "--", rel],
-            capture_output=True, text=True,
-        )
+        proc = _git("check-ignore", "--", rel)
         assert proc.returncode != 0, f"{rel} is still ignored and cannot ship"
 
 
 def test_generator_build_output_stays_ignored():
-    proc = subprocess.run(
-        ["git", "-c", "safe.directory=E:/AI/LocalVoiceAgent", "-C", str(REPO),
-         "check-ignore", "--", "tools/codegen-rust/target/release/lva-codegen-rust.exe"],
-        capture_output=True, text=True,
-    )
+    proc = _git("check-ignore", "--", "tools/codegen-rust/target/release/lva-codegen-rust.exe")
     assert proc.returncode == 0
 
 

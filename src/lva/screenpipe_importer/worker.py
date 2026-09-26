@@ -57,18 +57,30 @@ class ScreenpipeImportWorker:
 
     def update_watermark(self, watermark_utc_us: int) -> None:
         now_us = int(datetime.now(timezone.utc).timestamp() * 1_000_000)
+        # T01: advancing the watermark must NOT discard an unfinished reopen
+        # sweep.  Clearing the whole cursor here wiped the sweep continuation that
+        # was saved moments earlier, so a window that kept receiving new records
+        # never resumed and its tail stayed unreachable.  Only the incremental
+        # continuation (offset/skipped/watermark) is retired; the sweep survives
+        # with its own anchored window.
+        state = self._read_cursor()
+        for key in ("version", "offset", "skipped", "watermark"):
+            state.pop(key, None)
+        cursor = None
+        if state:
+            cursor = self.CURSOR_PREFIX + json.dumps(state, separators=(",", ":"))
         with self.repo.conn:
             self.repo.conn.execute(
                 """
                 INSERT INTO import_checkpoints (
-                    importer, external_source, watermark_utc_us, updated_at_utc_us
-                ) VALUES ('screenpipe_rest', 'audio', ?, ?)
+                    importer, external_source, cursor, watermark_utc_us, updated_at_utc_us
+                ) VALUES ('screenpipe_rest', 'audio', ?, ?, ?)
                 ON CONFLICT(importer, external_source) DO UPDATE SET
+                    cursor = excluded.cursor,
                     watermark_utc_us = excluded.watermark_utc_us,
-                    cursor = NULL,
                     updated_at_utc_us = excluded.updated_at_utc_us
                 """,
-                (watermark_utc_us, now_us),
+                (cursor, watermark_utc_us, now_us),
             )
 
     # The cursor column holds two independent continuations: the incremental
@@ -151,23 +163,29 @@ class ScreenpipeImportWorker:
             state.pop(key, None)
         self._write_cursor(state, self.get_watermark())
 
-    def _load_sweep_state(self, watermark: int) -> tuple[int, int] | None:
-        """The persisted reopen-sweep continuation, or ``None`` when none is valid."""
+    def _load_sweep_state(self, watermark: int) -> tuple[int, int, int] | None:
+        """The persisted reopen-sweep continuation ``(start, end, offset)``, or None.
+
+        The window is anchored to the values saved when the sweep was interrupted,
+        not re-derived from the current checkpoint: a checkpoint that keeps moving
+        (new records arriving) would otherwise shift the window and invalidate the
+        stored offset, so the sweep could never finish.
+        """
         state = self._read_cursor()
         sweep = state.get("sweep")
         if (
             not isinstance(sweep, dict)
             or type(sweep.get("start")) is not int
+            or type(sweep.get("end")) is not int
             or type(sweep.get("offset")) is not int
             or sweep["offset"] < 0
-            or sweep.get("watermark") != watermark
         ):
             return None
-        return sweep["start"], sweep["offset"]
+        return sweep["start"], sweep["end"], sweep["offset"]
 
-    def _save_sweep_state(self, start: int, offset: int, watermark: int) -> None:
+    def _save_sweep_state(self, start: int, end: int, offset: int, watermark: int) -> None:
         state = self._read_cursor()
-        state["sweep"] = {"start": start, "offset": offset, "watermark": watermark}
+        state["sweep"] = {"start": start, "end": end, "offset": offset, "watermark": watermark}
         self._write_cursor(state, watermark)
 
     def _clear_sweep_state(self) -> None:
@@ -503,16 +521,20 @@ class ScreenpipeImportWorker:
         """
         if watermark <= 0:
             return 0
-        window_start = max(0, watermark - self.REOPEN_WINDOW_US)
-        start_iso = datetime.fromtimestamp(window_start / 1_000_000, tz=timezone.utc).isoformat()
-        end_iso = datetime.fromtimestamp(watermark / 1_000_000, tz=timezone.utc).isoformat()
-        found = 0
-        # Resume from a persisted sweep offset so a window that does not fit in
-        # one call's page budget continues instead of restarting.  Without this
-        # the sweep always reread the head and could never reach a record that sat
-        # beyond the page cap.
+        # Resume from a persisted sweep window *and* offset, so a window that keeps
+        # receiving new records still finishes: re-deriving the window from a
+        # moving checkpoint would shift its lower edge and make the stored offset
+        # meaningless.  A fresh sweep is anchored to the current checkpoint.
         resumed = self._load_sweep_state(watermark)
-        offset = resumed[1] if resumed and resumed[0] == window_start else 0
+        if resumed is not None:
+            window_start, window_end, offset = resumed
+        else:
+            window_start = max(0, watermark - self.REOPEN_WINDOW_US)
+            window_end = watermark
+            offset = 0
+        start_iso = datetime.fromtimestamp(window_start / 1_000_000, tz=timezone.utc).isoformat()
+        end_iso = datetime.fromtimestamp(window_end / 1_000_000, tz=timezone.utc).isoformat()
+        found = 0
         swept_complete = False
         for _page in range(self.MAX_PAGES):
             try:
@@ -576,7 +598,7 @@ class ScreenpipeImportWorker:
                 break
             offset += limit
         if not swept_complete:
-            self._save_sweep_state(window_start, offset, watermark)
+            self._save_sweep_state(window_start, window_end, offset, watermark)
             log.warning(
                 "UNVERIFIED_SCREENPIPE_PAGINATION: reopen sweep stopped at page cap "
                 "(%d); window start %d with offset %d persisted and will resume. "

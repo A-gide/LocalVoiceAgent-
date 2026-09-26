@@ -215,6 +215,41 @@ def test_an_incomplete_sweep_is_persisted_for_resume():
     )
 
 
+
+def test_the_sweep_tail_is_reached_while_new_records_keep_arriving():
+    """A continuously advancing watermark must not starve the sweep tail.
+
+
+    Each round adds a newer record (advancing the checkpoint) while five older
+    records still need sweeping.  Advancing the watermark used to clear the whole
+    cursor, wiping the saved sweep continuation, so the oldest record never
+    landed.
+    """
+    from lva.journal.repository import JournalRepository
+    from lva.screenpipe_importer.worker import ScreenpipeImportWorker
+
+    client = WindowedClient([_rec("seed", BASE)])
+    repo = JournalRepository(":memory:")
+    worker = ScreenpipeImportWorker(client, repo)
+    worker.MAX_PAGES = 2
+    asyncio.run(worker.import_page(limit=2))
+
+    for i in range(5):
+        client.items.append(_rec(f"old-{i}", BASE - timedelta(hours=i + 1)))
+
+    for rnd in range(4):
+        client.items.append(_rec(f"new-{rnd}", BASE + timedelta(minutes=rnd + 1)))
+        asyncio.run(worker.import_page(limit=2))
+        missing = [f"old-{i}" for i in range(5) if f"old-{i}" not in _stored_ids(repo)]
+        if not missing:
+            break
+
+    missing = [f"old-{i}" for i in range(5) if f"old-{i}" not in _stored_ids(repo)]
+    assert not missing, (
+        "the reopen sweep tail stayed unreachable while the checkpoint advanced: "
+        f"missing={missing!r}, stored={sorted(_stored_ids(repo))}"
+    )
+
 def test_an_open_quarantine_record_still_blocks_the_checkpoint():
     """Before the abandon threshold the checkpoint must stay put for retry."""
     from lva.journal.repository import JournalRepository

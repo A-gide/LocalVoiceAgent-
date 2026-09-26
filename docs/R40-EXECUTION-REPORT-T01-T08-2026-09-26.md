@@ -270,3 +270,54 @@ all groups passed
 ```
 
 ruff 通过；T05/T06 实机与 T08 硬件门禁**仍关闭**（服务未运行）。
+
+---
+
+## 11. 复核后更正之二 — T01 组合缺口（2026-09-26）
+
+独立复核指出：补扫 `sweep` cursor 与水位推进**互相覆盖**，导致「持续有新记录进入」时尾部旧记录不可达。
+本轮复现确认并修复。
+
+### 缺口
+
+`worker.py` 先保存未完成补扫的 `sweep` cursor，随后若 `max_seen_ts > watermark`，
+`update_watermark()` 的 `cursor = NULL` **清空整个 cursor**，补扫续传位置随之丢失。
+
+```ini
+复现（MAX_PAGES=2 / 每页 2 条 / 旧记录 5 条 / 每轮新增 1 条）:
+round 0 stored=[new0, old0..old3, seed]   cursor=None
+round 1 stored=[...old3, new1, seed]      cursor=None
+round 2 stored=[...old3, new2, seed]      cursor=None
+missing_old=['old0','old1','old2','old3','old4']  -> rold4 永不可达，每轮 cursor 被清空
+```
+
+### 修复
+
+1. `update_watermark()` 只退役**增量**续传字段（`version`/`offset`/`skipped`/`watermark`），
+   **保留 `sweep`**；
+2. 补扫窗口**锚定**在中断时保存的 `(start, end)`，不再从移动中的水位重新推导，
+   否则窗口下沿随水位移动、已存 offset 失效；
+3. `_save_sweep_state(start, end, offset, watermark)` / `_load_sweep_state() -> (start, end, offset)`。
+
+### 复现确认（修后）
+
+```ini
+round 0 stored 含 old0..old3，cursor 保留 sweep{offset:4}
+round 1 stored 含 old4                              -> FIXED
+```
+
+### 新 RED
+
+`test_the_sweep_tail_is_reached_while_new_records_keep_arriving`：每轮追加新记录推动水位，
+断言 5 条旧记录最终**全部**入库（覆盖现有续传测试未覆盖的「水位持续变化」情形）。
+
+### 修复后门禁（本轮实测）
+
+```ini
+[PASS] contract 5 / invariants 23 / unit 47 / fault 7 / integration 11
+[PASS] migration 2 / ux 11 / harness 43 / red-v121 429
+expected-red groups failing: []
+all groups passed
+```
+
+T05/T06 实机与 T08 硬件门禁**仍关闭**。

@@ -300,6 +300,43 @@ export const useRuntimeStore = defineStore('runtime', () => {
     }
   }
 
+  /**
+   * Execute one Core capture request and report the observed result (FIX-006).
+   *
+   * The Desktop owns the recorder, so this is the only place the request can
+   * actually run.  The result is echoed back as `capture.ack` with the observed
+   * value: a `null managed_stopped` stays null so Core cannot treat an unknown
+   * as a verified stop.  A failure to run at all still sends an ack with null,
+   * because staying silent would leave the scope unverified forever.
+   */
+  async function handleCaptureRequest(
+    operationId: string,
+    kind: 'stop' | 'resume',
+  ): Promise<void> {
+    let managedStopped: boolean | null = null;
+    let externalDetected: boolean | null = null;
+    try {
+      const result = await TauriBridge.executeCaptureOperation(operationId, kind);
+      managedStopped = result.managed_screenpipe_stopped;
+      externalDetected = result.external_screenpipe_detected;
+    } catch (err: any) {
+      lastError.value = err?.toString() || 'Capture operation failed';
+    }
+    try {
+      const ack = await TauriBridge.sendCoreCommand('capture.ack', {
+        type: 'capture.ack',
+        operation_id: operationId,
+        managed_stopped: managedStopped,
+        external_detected: externalDetected,
+      });
+      if (ack.status !== 'applied' && ack.status !== 'accepted') {
+        lastError.value = ack.error?.message || 'Capture ack was refused';
+      }
+    } catch (err: any) {
+      lastError.value = err?.toString() || 'Capture ack failed';
+    }
+  }
+
   function handleEvent(envelope: EventEnvelope) {
     // PR-028 acceptance ("Core restart 清理 pending"): a different runtime
     // instance means the previous Core died, so any turn the chat store was
@@ -327,6 +364,14 @@ export const useRuntimeStore = defineStore('runtime', () => {
         break;
       case 'privacy.scope_changed':
         state.value.privacy_scope = envelope.payload.new_scope;
+        break;
+      case 'capture.operation_requested':
+        // FIX-006: Core asks for one managed-capture operation.  Only the
+        // Desktop executor can drive the owned recorder, so the UI runs it and
+        // reports the *observed* result back as `capture.ack`.  The request and
+        // its ack are correlated by `operation_id`; a `null managed_stopped` is
+        // forwarded as-is so Core never reads an unknown as a verified stop.
+        void handleCaptureRequest(envelope.payload.operation_id, envelope.payload.kind);
         break;
       case 'hub.binding_changed':
         state.value.hub_binding = envelope.payload.binding;

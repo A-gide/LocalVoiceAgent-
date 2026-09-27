@@ -187,12 +187,24 @@ def get_turn_executor() -> TurnExecutor:
         # calls this runner; it records the reply on the runtime first so the
         # `turn.completed` event carries the text.  `/api/ask` suppresses this and
         # runs the executor itself (with domain/speak).
-        def _default_turn_runner(text: str, _turn) -> None:
-            outcome = _turn_executor.run_text_turn(text)
-            rt.reply_text = outcome.reply
-
-        rt.turn_runner = _default_turn_runner
+        rt.turn_runner = lambda text, _turn: run_default_turn(rt, _turn_executor, text)
     return _turn_executor
+
+
+def run_default_turn(runtime: Any, executor: Any, text: str) -> None:
+    """Run one executor turn for the typed dispatcher, raising on failure.
+
+    The executor reports a provider failure through ``outcome.failed`` instead of
+    raising, so this adapter must translate it back into an exception: returning
+    normally made the dispatcher report ``applied`` for a turn that produced no
+    reply (the pretend-success the review found).  ``turn_runner_suppressed``
+    callers (``/api/ask``) run the executor themselves, so this is the only place
+    that maps the outcome for the default path.
+    """
+    outcome = executor.run_text_turn(text)
+    if outcome.failed:
+        raise RuntimeError(outcome.failed)
+    runtime.reply_text = outcome.reply
 
 
 def get_hub_saga() -> "HubRuntimeSaga":

@@ -175,7 +175,13 @@ class RuntimeController:
         binding = self._hub_binding
         if binding is None:
             return None
-        return binding.active_model_id or binding.desired_model_id or None
+        # Only a model the Hub actually has *active* may drive inference.  A
+        # binding that is still `preparing`, or that was rolled back after a
+        # failed load, keeps only `desired_model_id`; answering from it would let
+        # a failed switch silently steer every later request to a model that is
+        # not running.  No active model -> no override, so the configured default
+        # is used rather than a model the Hub never confirmed.
+        return binding.active_model_id or None
 
     def _run_turn_runner(self, text: str, turn: TurnId) -> ErrorEnvelope | None:
         """Run the injected turn runner (T04); return an error when it failed.

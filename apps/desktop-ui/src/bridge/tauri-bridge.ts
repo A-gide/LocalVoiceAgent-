@@ -55,6 +55,22 @@ export interface ServiceProcessInfo {
   pid: number | null;
 }
 
+/**
+ * Result of one managed-capture operation (FIX-006).
+ *
+ * Mirrors the Rust `CaptureExecutionResult`.  `managed_stopped` is the value that
+ * travels back to Core in `capture.ack`; `null` is the fail-closed answer and
+ * must never be sent as a definite success.
+ */
+export interface CaptureExecutionResult {
+  operation_id: string;
+  intent: 'stop' | 'resume';
+  status: string;
+  managed_screenpipe_stopped: boolean | null;
+  external_screenpipe_detected: boolean;
+  error: string | null;
+}
+
 /** Persisted window position and size, in logical coordinates (PR-031). */
 export interface SavedWindowGeometry {
   x: number;
@@ -307,6 +323,23 @@ export const TauriBridge = {
 
   async getServicesStatus(): Promise<FullServicesStatus> {
     return invokeTauri<FullServicesStatus>('get_services_status');
+  },
+
+  /**
+   * Run one managed-capture operation on the Desktop side (FIX-006).
+   *
+   * This is the executor half of the Core's `capture.operation_requested`: the
+   * command is invoked by name because only Rust can actually drive the owned
+   * recorder, and its observed result is what the ack reports.
+   */
+  async executeCaptureOperation(
+    operationId: string,
+    intent: 'stop' | 'resume',
+  ): Promise<CaptureExecutionResult> {
+    return invokeTauri<CaptureExecutionResult>('execute_capture_operation', {
+      operationId,
+      intent,
+    });
   },
 
   async togglePet(): Promise<void> {

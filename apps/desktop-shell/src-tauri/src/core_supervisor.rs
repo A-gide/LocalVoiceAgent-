@@ -88,80 +88,13 @@ impl CoreSupervisor {
 
         // Read LVA_READY line from stdout
         let stdout = child.stdout.take().ok_or("Failed to capture core stdout pipe")?;
-        // F-009: `read_line` blocks until a newline or EOF, so checking the
-        // clock *around* it never enforced the deadline -- a core that wrote a
-        // partial line (or nothing) hung the supervisor forever.  The read runs
-        // on its own thread and the main thread waits on a channel with
-        // `recv_timeout`, so the deadline is real rather than decorative.
-        let (tx, rx) = mpsc::channel::<Result<String, String>>();
-        std::thread::spawn(move || {
-            let mut reader = BufReader::new(stdout);
-            loop {
-                let mut line = String::new();
-                match reader.read_line(&mut line) {
-                    Ok(0) => {
-                        let _ = tx.send(Err(
-                            "Core process stdout closed before emitting LVA_READY".to_string(),
-                        ));
-                        break;
-                    }
-                    Ok(_) => {
-                        if tx.send(Ok(line)).is_err() {
-                            break;
-                        }
-                    }
-                    Err(e) => {
-                        let _ = tx.send(Err(format!("Error reading core stdout: {}", e)));
-                        break;
-                    }
-                }
-            }
-        });
-
-        let start = Instant::now();
-        let ready_line: String;
-        loop {
-            let remaining = match timeout.checked_sub(start.elapsed()) {
-                Some(r) if !r.is_zero() => r,
-                _ => {
-                    let _ = child.kill();
-                    return Err("Timeout waiting for LVA_READY from core stdout".to_string());
-                }
-            };
-
-            match rx.recv_timeout(remaining) {
-                Ok(Ok(line)) => {
-                    let trimmed = line.trim();
-                    if trimmed.starts_with("LVA_READY") {
-                        ready_line = trimmed.to_string();
-                        break;
-                    }
-                    if !trimmed.is_empty() {
-                        // §2.3-8: readiness is exactly one line on a clean stdout.
-                        // Any other output before it is a startup failure, not noise.
-                        let _ = child.kill();
-                        return Err(format!(
-                            "Unexpected core stdout before LVA_READY: {}",
-                            trimmed.chars().take(120).collect::<String>()
-                        ));
-                    }
-                }
-                Ok(Err(e)) => {
-                    let _ = child.kill();
-                    return Err(e);
-                }
-                Err(mpsc::RecvTimeoutError::Timeout) => {
-                    let _ = child.kill();
-                    return Err("Timeout waiting for LVA_READY from core stdout".to_string());
-                }
-                Err(mpsc::RecvTimeoutError::Disconnected) => {
-                    let _ = child.kill();
-                    return Err(
-                        "Core process stdout closed before emitting LVA_READY".to_string()
-                    );
-                }
-            }
-        }
+        // F-009: the read must not be able to outlive the deadline.  The helper
+        // owns the blocking read on its own thread and enforces the timeout with
+        // `recv_timeout`, and it invokes the cleanup callback on *every* failure
+        // path so the child handle is never leaked.
+        let (ready_line, rx) = await_ready_line(stdout, timeout, || {
+            let _ = child.kill();
+        })?;
 
         // Parse LVA_READY payload
         let payload_str = ready_line
@@ -191,14 +124,16 @@ impl CoreSupervisor {
        self.supervisor.register_spawned("lva_core", child);
 
         // §2.3-8: a second readiness line is a startup failure, not a log line to
-        // ignore. The monitor owns stdout for the rest of the session: it drains the
-        // pipe (so the child can never block on a full stdout buffer) and kills the
-        // child handle through the ownership-gated supervisor when an extra
-        // LVA_READY arrives.
+        // ignore.  The reader thread above owns the stdout pipe for the rest of the
+        // session: it forwards every line here, so the monitor drains the same
+        // channel rather than reading the pipe a second time (the `BufReader` was
+        // moved into the reader thread and cannot be reused).  Draining keeps the
+        // child from blocking on a full stdout buffer, and an extra LVA_READY stops
+        // the child through the ownership-gated supervisor.
         let supervisor = self.supervisor.clone();
         std::thread::spawn(move || {
-            for line in reader.lines() {
-                let Ok(text) = line else {
+            while let Ok(msg) = rx.recv() {
+                let Ok(text) = msg else {
                     return; // pipe closed together with the child
                 };
                 let trimmed = text.trim();
@@ -225,3 +160,194 @@ impl CoreSupervisor {
         })
     }
 }
+/// Read the `LVA_READY` line with a *real* deadline (F-009).
+///
+/// `read_line` blocks until a newline or EOF, so a timeout checked around it is
+/// never enforced: a child that writes nothing, or a partial line, hangs the
+/// supervisor forever.  The blocking read therefore runs on its own thread and
+/// the caller waits with `recv_timeout`.  `on_failure` runs on *every* failure
+/// path so the caller stops the child it owns instead of leaking it.
+///
+/// On success the returned receiver still carries the rest of the child's
+/// stdout, so the caller can keep draining the pipe (a full stdout buffer would
+/// block the child) and watch for an extra readiness line.
+fn await_ready_line(
+    stdout: std::process::ChildStdout,
+    timeout: Duration,
+    mut on_failure: impl FnMut(),
+) -> Result<(String, mpsc::Receiver<Result<String, String>>), String> {
+    let (tx, rx) = mpsc::channel::<Result<String, String>>();
+    std::thread::spawn(move || {
+        let mut reader = BufReader::new(stdout);
+        loop {
+            let mut line = String::new();
+            match reader.read_line(&mut line) {
+                Ok(0) => {
+                    let _ = tx.send(Err(
+                        "Core process stdout closed before emitting LVA_READY".to_string(),
+                    ));
+                    return;
+                }
+                Ok(_) => {
+                    if tx.send(Ok(line)).is_err() {
+                        return;
+                    }
+                }
+                Err(e) => {
+                    let _ = tx.send(Err(format!("Error reading core stdout: {}", e)));
+                    return;
+                }
+            }
+        }
+    });
+
+    let start = Instant::now();
+    loop {
+        let remaining = match timeout.checked_sub(start.elapsed()) {
+            Some(r) if !r.is_zero() => r,
+            _ => {
+                on_failure();
+                return Err("Timeout waiting for LVA_READY from core stdout".to_string());
+            }
+        };
+
+        match rx.recv_timeout(remaining) {
+            Ok(Ok(line)) => {
+                let trimmed = line.trim();
+                if trimmed.starts_with("LVA_READY") {
+                    return Ok((trimmed.to_string(), rx));
+                }
+                if !trimmed.is_empty() {
+                    // §2.3-8: readiness is exactly one line on a clean stdout.
+                    // Any other output before it is a startup failure, not noise.
+                    on_failure();
+                    return Err(format!(
+                        "Unexpected core stdout before LVA_READY: {}",
+                        trimmed.chars().take(120).collect::<String>()
+                    ));
+                }
+            }
+            Ok(Err(e)) => {
+                on_failure();
+                return Err(e);
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                on_failure();
+                return Err("Timeout waiting for LVA_READY from core stdout".to_string());
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                on_failure();
+                return Err(
+                    "Core process stdout closed before emitting LVA_READY".to_string()
+                );
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::{Child, Command, Stdio};
+    use std::sync::atomic::{AtomicBool, Ordering};
+    use std::sync::Arc;
+
+    fn spawned(command_line: &str) -> Child {
+        Command::new("cmd")
+            .arg("/C")
+            .arg(command_line)
+            .stdout(Stdio::piped())
+            .spawn()
+            .expect("spawn cmd")
+    }
+
+    fn flag() -> (Arc<AtomicBool>, Arc<AtomicBool>) {
+        let shared = Arc::new(AtomicBool::new(false));
+        (shared.clone(), shared)
+    }
+
+    #[test]
+    fn a_ready_line_is_returned_and_cleanup_is_not_invoked() {
+        let mut child = spawned("echo LVA_READY ok");
+        let stdout = child.stdout.take().expect("stdout pipe");
+        let (hook, shared) = flag();
+
+        let (line, _rest) = await_ready_line(stdout, Duration::from_secs(10), move || {
+            hook.store(true, Ordering::SeqCst)
+        })
+        .expect("a real LVA_READY line must be accepted");
+
+        assert!(line.starts_with("LVA_READY"), "got {line:?}");
+        assert!(!shared.load(Ordering::SeqCst));
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn a_child_that_writes_nothing_times_out_and_invokes_cleanup() {
+        let mut child = spawned("ping -n 30 127.0.0.1 >nul");
+        let stdout = child.stdout.take().expect("stdout pipe");
+        let (hook, shared) = flag();
+
+        let err = await_ready_line(stdout, Duration::from_millis(300), move || {
+            hook.store(true, Ordering::SeqCst)
+        })
+        .expect_err("no output must not be treated as ready");
+
+        assert!(err.contains("Timeout"), "unexpected error: {err}");
+        assert!(shared.load(Ordering::SeqCst), "cleanup must run on timeout");
+        let _ = child.kill();
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn a_partial_line_at_eof_fails_and_invokes_cleanup() {
+        let mut child = spawned("echo|set /p=half-a-line");
+        let stdout = child.stdout.take().expect("stdout pipe");
+        let (hook, shared) = flag();
+
+        let err = await_ready_line(stdout, Duration::from_secs(10), move || {
+            hook.store(true, Ordering::SeqCst)
+        })
+        .expect_err("a partial non-ready line must be rejected");
+
+        assert!(
+            err.contains("Unexpected core stdout") || err.contains("closed before emitting"),
+            "unexpected error: {err}"
+        );
+        assert!(shared.load(Ordering::SeqCst), "cleanup must run on failure");
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn stray_output_before_ready_is_a_startup_failure() {
+        let mut child = spawned("echo not-a-ready-line");
+        let stdout = child.stdout.take().expect("stdout pipe");
+        let (hook, shared) = flag();
+
+        let err = await_ready_line(stdout, Duration::from_secs(10), move || {
+            hook.store(true, Ordering::SeqCst)
+        })
+        .expect_err("stray output must be rejected");
+
+        assert!(err.contains("Unexpected core stdout"), "unexpected error: {err}");
+        assert!(shared.load(Ordering::SeqCst), "cleanup must run on failure");
+        let _ = child.wait();
+    }
+
+    #[test]
+    fn an_immediate_eof_fails_and_invokes_cleanup() {
+        let mut child = spawned("exit 0");
+        let stdout = child.stdout.take().expect("stdout pipe");
+        let (hook, shared) = flag();
+
+        let err = await_ready_line(stdout, Duration::from_secs(10), move || {
+            hook.store(true, Ordering::SeqCst)
+        })
+        .expect_err("EOF before readiness must fail");
+
+        assert!(err.contains("closed before emitting LVA_READY"), "unexpected error: {err}");
+        assert!(shared.load(Ordering::SeqCst), "cleanup must run on failure");
+        let _ = child.wait();
+    }
+}
+

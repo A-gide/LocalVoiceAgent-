@@ -87,3 +87,27 @@ cargo check --offline --lib --tests                                Finished（�
 R42 复审的四项发现均已在代码层修复，其中三项（P0/P1/P2）由走真实入口的 Python RED 覆盖并通过；FIX-007 的解析失败清理已实现并有 Rust 测试，但**该 Rust 测试在此环境无法执行**。
 
 **不宣布总体 GREEN**：FIX-007 的 Rust 行为测试、T05/T06 实机、T08 硬件门禁均未运行。远端 CI 通过也不改变这一结论。
+
+---
+
+## 6. 勘误与补充（2026-09-27，复审 P2）
+
+复审指出：(a) §1 FIX-007 行「`spawn_core` 经它统一在失败时 `child.kill()`」的表述过宽，
+应立即收窄到当时只覆盖的 READY 等待与解析路径；(b) `core_supervisor.rs` 在子进程已启动后、
+向 stdin 写 bootstrap 失败时直接返回，未终止子进程（P2 待验证）。两条均成立。
+
+### 6.1 已修复的生命周期缺口
+
+`write_bootstrap()` 抽为一个可测试的写入助手：写失败（或 flush 前管道断开）时调用 `on_failure()`，
+`spawn_core` 用它 `child.kill()`；`stdout` 管道获取失败同样 `kill`。新增 Rust 测试
+`a_bootstrap_write_failure_invokes_cleanup`（用返回 `BrokenPipe` 的假 writer 断言清理回调被调用）。
+
+### 6.2 收窄后的表述（替换 §1 的过宽说法）
+
+`spawn_core` 在**子进程存在之后**的每条失败路径都调用 `child.kill()`，具体为：stdin 管道获取失败、
+bootstrap 写入失败、stdout 管道获取失败、READY 等待超时、READY 前 EOF、READY 前杂散输出、
+READY JSON 解析失败、`protocol_version` 不符、`nonce` 不符。`spawn` 本身失败时尚无子进程，无需清理。
+
+以上均由 `cargo check --lib --tests` 证实可编译并有对应 Rust 测试；与前几轮相同的限制是：
+这些 Rust 测试在本机**无法执行**（toolchain 的 `dlltool` 是不可用的桩、缺 `link.exe`），
+因此本条从「类型检查通过」到「行为已验证」仍未完成。

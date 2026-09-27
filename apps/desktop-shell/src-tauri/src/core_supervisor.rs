@@ -52,11 +52,6 @@ impl CoreSupervisor {
 
         log::info!("[CoreSupervisor] Spawning LVA Core with bootstrap pipe handshake...");
 
-        // The write side is kept alive (not dropped after the JSON line) because
-        // Core treats stdin EOF as an orphan signal: see the field comment on
-        // CoreInstance::bootstrap_stdin.
-        let bootstrap_stdin: Option<std::process::ChildStdin>;
-
         let mut child = Command::new(&self.python_path)
             .args(&["-m", "lva", "serve", "--bootstrap"])
             .current_dir(&self.workspace_root)
@@ -75,19 +70,37 @@ impl CoreSupervisor {
             "parent_pid": parent_pid,
         });
 
-        if let Some(mut stdin) = child.stdin.take() {
-            let line = bootstrap_json.to_string() + "\n";
-            stdin
-                .write_all(line.as_bytes())
-                .map_err(|e| format!("Failed to write bootstrap to core stdin: {}", e))?;
-            stdin.flush().ok();
-            bootstrap_stdin = Some(stdin);
-        } else {
-            return Err("Failed to capture core stdin pipe".to_string());
-        }
+        // The write side is kept alive (not dropped after the JSON line) because
+        // Core treats stdin EOF as an orphan signal: see the field comment on
+        // CoreInstance::bootstrap_stdin.
+        //
+        // Both hands of this handshake run *after* the child exists, so every
+        // failure here must stop it.  Returning on a failed stdin write used to
+        // leave the spawned process running with no owner.
+        let bootstrap_stdin: Option<std::process::ChildStdin> = match child.stdin.take() {
+            Some(mut stdin) => {
+                let line = bootstrap_json.to_string() + "\n";
+                if let Err(e) = write_bootstrap(&mut stdin, line.as_bytes(), || {
+                    let _ = child.kill();
+                }) {
+                    return Err(e);
+                }
+                Some(stdin)
+            }
+            None => {
+                let _ = child.kill();
+                return Err("Failed to capture core stdin pipe".to_string());
+            }
+        };
 
         // Read LVA_READY line from stdout
-        let stdout = child.stdout.take().ok_or("Failed to capture core stdout pipe")?;
+        let stdout = match child.stdout.take() {
+            Some(stdout) => stdout,
+            None => {
+                let _ = child.kill();
+                return Err("Failed to capture core stdout pipe".to_string());
+            }
+        };
         // F-009: the read must not be able to outlive the deadline, and a
         // malformed readiness line is a startup failure too.  The helper owns the
         // blocking read on its own thread, enforces the timeout with
@@ -153,7 +166,24 @@ impl CoreSupervisor {
         })
     }
 }
-/// Read the `LVA_READY` line with a *real* deadline (F-009).
+/// Write the bootstrap line to the child's stdin, stopping the child on failure.
+///
+/// The write runs *after* the child exists, so a broken pipe means the core is
+/// unusable; `on_failure` lets the caller reap it instead of leaking a process
+/// with no owner.
+fn write_bootstrap(
+    stdin: &mut impl Write,
+    line: &[u8],
+    mut on_failure: impl FnMut(),
+) -> Result<(), String> {
+    if let Err(e) = stdin.write_all(line) {
+        on_failure();
+        return Err(format!("Failed to write bootstrap to core stdin: {}", e));
+    }
+    let _ = stdin.flush();
+    Ok(())
+}
+
 /// Read and parse the `LVA_READY` payload with a real deadline (F-009).
 ///
 /// Wraps [`await_ready_line`] with the payload parse so a *malformed* readiness
@@ -176,6 +206,7 @@ fn await_ready_payload(
     }
 }
 
+/// Read the `LVA_READY` line with a *real* deadline (F-009).
 ///
 /// `read_line` blocks until a newline or EOF, so a timeout checked around it is
 /// never enforced: a child that writes nothing, or a partial line, hangs the
@@ -382,6 +413,33 @@ mod tests {
         );
         let _ = child.kill();
         let _ = child.wait();
+    }
+    struct FailingWriter;
+
+    impl Write for FailingWriter {
+        fn write(&mut self, _buf: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::new(std::io::ErrorKind::BrokenPipe, "closed"))
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn a_bootstrap_write_failure_invokes_cleanup() {
+        let (hook, shared) = flag();
+
+        let err = write_bootstrap(&mut FailingWriter, b"bootstrap", move || {
+            hook.store(true, Ordering::SeqCst)
+        })
+        .expect_err("a failed stdin write must be reported");
+
+        assert!(err.contains("Failed to write bootstrap"), "unexpected error: {err}");
+        assert!(
+            shared.load(Ordering::SeqCst),
+            "a failed bootstrap write must clean up the spawned child"
+        );
     }
 }
 

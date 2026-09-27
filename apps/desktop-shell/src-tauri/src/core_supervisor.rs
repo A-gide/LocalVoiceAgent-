@@ -88,21 +88,14 @@ impl CoreSupervisor {
 
         // Read LVA_READY line from stdout
         let stdout = child.stdout.take().ok_or("Failed to capture core stdout pipe")?;
-        // F-009: the read must not be able to outlive the deadline.  The helper
-        // owns the blocking read on its own thread and enforces the timeout with
-        // `recv_timeout`, and it invokes the cleanup callback on *every* failure
-        // path so the child handle is never leaked.
-        let (ready_line, rx) = await_ready_line(stdout, timeout, || {
+        // F-009: the read must not be able to outlive the deadline, and a
+        // malformed readiness line is a startup failure too.  The helper owns the
+        // blocking read on its own thread, enforces the timeout with
+        // `recv_timeout`, and runs the cleanup callback on *every* failure path --
+        // including the JSON parse -- so the child handle is never leaked.
+        let (ready, rx) = await_ready_payload(stdout, timeout, || {
             let _ = child.kill();
         })?;
-
-        // Parse LVA_READY payload
-        let payload_str = ready_line
-            .strip_prefix("LVA_READY")
-            .unwrap_or("")
-            .trim();
-        let ready: LvaReadyPayload = serde_json::from_str(payload_str)
-            .map_err(|e| format!("Invalid LVA_READY JSON '{}': {}", payload_str, e))?;
 
         if ready.protocol_version != 1 {
             let _ = child.kill();
@@ -161,6 +154,28 @@ impl CoreSupervisor {
     }
 }
 /// Read the `LVA_READY` line with a *real* deadline (F-009).
+/// Read and parse the `LVA_READY` payload with a real deadline (F-009).
+///
+/// Wraps [`await_ready_line`] with the payload parse so a *malformed* readiness
+/// line is treated exactly like the other startup failures: `on_failure` runs and
+/// the caller stops the child it owns.  An earlier version parsed with `?` and
+/// returned without cleanup, leaking the child.
+fn await_ready_payload(
+    stdout: std::process::ChildStdout,
+    timeout: Duration,
+    mut on_failure: impl FnMut(),
+) -> Result<(LvaReadyPayload, mpsc::Receiver<Result<String, String>>), String> {
+    let (line, rest) = await_ready_line(stdout, timeout, &mut on_failure)?;
+    let payload_str = line.strip_prefix("LVA_READY").unwrap_or("").trim();
+    match serde_json::from_str::<LvaReadyPayload>(payload_str) {
+        Ok(ready) => Ok((ready, rest)),
+        Err(e) => {
+            on_failure();
+            Err(format!("Invalid LVA_READY JSON '{}': {}", payload_str, e))
+        }
+    }
+}
+
 ///
 /// `read_line` blocks until a newline or EOF, so a timeout checked around it is
 /// never enforced: a child that writes nothing, or a partial line, hangs the
@@ -347,6 +362,25 @@ mod tests {
 
         assert!(err.contains("closed before emitting LVA_READY"), "unexpected error: {err}");
         assert!(shared.load(Ordering::SeqCst), "cleanup must run on failure");
+        let _ = child.wait();
+    }
+    #[test]
+    fn a_malformed_ready_payload_fails_and_invokes_cleanup() {
+        let mut child = spawned("echo LVA_READY not-json");
+        let stdout = child.stdout.take().expect("stdout pipe");
+        let (hook, shared) = flag();
+
+        let err = await_ready_payload(stdout, Duration::from_secs(10), move || {
+            hook.store(true, Ordering::SeqCst)
+        })
+        .expect_err("a malformed readiness payload must be rejected");
+
+        assert!(err.contains("Invalid LVA_READY JSON"), "unexpected error: {err}");
+        assert!(
+            shared.load(Ordering::SeqCst),
+            "a parse failure must still run the child cleanup"
+        );
+        let _ = child.kill();
         let _ = child.wait();
     }
 }

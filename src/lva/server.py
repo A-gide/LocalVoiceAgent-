@@ -202,7 +202,7 @@ def run_default_turn(runtime: Any, executor: Any, text: str) -> None:
     that maps the outcome for the default path.
     """
     outcome = executor.run_text_turn(text)
-    if outcome.failed:
+    if outcome.failed is not None:
         raise RuntimeError(outcome.failed)
     runtime.reply_text = outcome.reply
 

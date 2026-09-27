@@ -45,6 +45,11 @@ class CaptureCoordinator:
     on_start_mic: Callable[[], None] | None = None
     now: Callable[[], datetime] | None = None
     ack_timeout: timedelta = CAPTURE_ACK_TIMEOUT
+    #: Identifies the Core instance that minted these operations.  Operation ids
+    #: are prefixed with it so a late ack from a *previous* Core can never match a
+    #: same-numbered request in a restarted one (the ids otherwise restart at
+    #: ``cap-1`` on every boot).
+    instance_token: str = ""
 
     def __post_init__(self) -> None:
         self.core_mic_stopped = True
@@ -103,8 +108,9 @@ class CaptureCoordinator:
                 prior.status = "superseded"
         self._counter += 1
         requested = self._now()
+        prefix = f"{self.instance_token}-" if self.instance_token else ""
         op = CaptureOperation(
-            operation_id=f"cap-{self._counter}",
+            operation_id=f"{prefix}cap-{self._counter}",
             kind=kind,
             requested_at=requested,
             deadline=requested + self.ack_timeout,
@@ -155,8 +161,13 @@ class CaptureCoordinator:
                     log.warning("Ignoring duplicate ack for %s", operation_id)
                     return False
                 op.status = "acknowledged"
-                if managed_stopped is not None:
-                    self.managed_screenpipe_stopped = managed_stopped
+                # The flag follows the *observed* result, including an explicit
+                # unknown.  A request optimistically records the intended state,
+                # so leaving the flag untouched on a `None` ack would let an
+                # executor that could not confirm anything still read as
+                # "stopped" and raise the scope to VERIFIED.  `None` therefore
+                # overwrites it with unknown.
+                self.managed_screenpipe_stopped = managed_stopped
                 if external_detected is not None:
                     self.external_screenpipe_detected = external_detected
                 log.info("Capture operation %s acknowledged", operation_id)

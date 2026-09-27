@@ -110,7 +110,11 @@ class RuntimeController:
             get_current_turn=lambda: self.turn_controller.current_turn,
             get_current_epoch=lambda: self.interrupt_controller.provider_epoch,
         )
-        self.capture_coordinator = CaptureCoordinator(now=capture_now)
+        # FIX-006: the instance token prefixes every operation id, so a stale ack
+        # from a previous Core cannot match a same-numbered request in a new one.
+        self.capture_coordinator = CaptureCoordinator(
+            now=capture_now, instance_token=str(self.runtime_instance_id)
+        )
         # Startup assumption, not an operation: nothing has been spawned yet, so
         # there is no executor that could acknowledge a request (plan L1335).
         self.capture_coordinator.request_managed_capture_off(track=False)
